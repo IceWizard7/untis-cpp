@@ -1,0 +1,12 @@
+[submodule "external/IXWebSocket"]
+	path = external/IXWebSocket
+	url = https://github.com/machinezone/IXWebSocket.git
+[submodule "external/boost"]
+	path = external/boost
+	url = https://github.com/boostorg/boost.git
+[submodule "external/cpr"]
+	path = external/cpr
+	url = https://github.com/libcpr/cpr
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/nlohmann/json
