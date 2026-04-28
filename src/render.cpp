@@ -1,6 +1,7 @@
 #include "render.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <regex>
