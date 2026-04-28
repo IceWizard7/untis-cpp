@@ -1,38 +1,46 @@
 cmake_minimum_required(VERSION 4.1)
-project(Untis)
+
+project(Untis VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Dependencies
 add_subdirectory(external/IXWebSocket)
 
 set(CPR_CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/cpr)
 add_subdirectory(external/json)
 
-add_executable(Untis main.cpp
-        config.cpp
-        logging.cpp
-        objects.cpp
-        config.hpp
-        exceptions.hpp
-        logging.hpp
-        objects.hpp
-        render.cpp
-        render.hpp
+# Library
+add_library(Untis STATIC
+        src/config.cpp
+        src/logging.cpp
+        src/objects.cpp
+        src/render.cpp
 )
 
-target_include_directories(Untis PRIVATE
-        external/boost/libs/uuid/include
-        external/boost/libs/config/include
-        external/boost/libs/assert/include
-        external/boost/libs/core/include
-        external/boost/libs/static_assert/include
-        external/boost/libs/throw_exception/include
-        external/boost/libs/type_traits/include
+# Public headers for consumers
+target_include_directories(Untis PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/uuid/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/config/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/assert/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/core/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/static_assert/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/throw_exception/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/type_traits/include
 )
 
-target_link_libraries(Untis PRIVATE
+# Link dependencies
+target_link_libraries(Untis PUBLIC
         ixwebsocket
         cpr::cpr
         nlohmann_json::nlohmann_json
 )
+
+install(TARGETS Untis DESTINATION lib)
+install(DIRECTORY src/ DESTINATION include
+        FILES_MATCHING PATTERN "*.hpp")
