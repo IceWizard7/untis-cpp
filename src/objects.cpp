@@ -13,6 +13,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <variant>
+#include <bitset>
 
 #include "config.hpp"
 #include "exceptions.hpp"
