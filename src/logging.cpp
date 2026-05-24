@@ -52,37 +52,38 @@ void Logger::log_error(const std::string& message) {
     _log(message, LogLevels::ERROR);
 }
 
-void Logger::_log(const std::string& message, const int level) {
+void Logger::_log(const std::string& message, LogLevels level) {
     log_messages[level].push_back(message);
 
-    std::string time = current_time();
+    const std::string time = current_time();
 
-    if (level == LogLevels::DEBUG) {
-        std::cout << Color::GREEN
-                  << "[" << level << "] " << time << ": "
-                  << message
-                  << Color::RESET << std::endl;
+    const char* color;
+
+    switch (level) {
+        case LogLevels::DEBUG:
+            color = Color::GREEN;
+            break;
+        case LogLevels::INFO:
+            color = Color::CYAN;
+            break;
+        case LogLevels::WARNING:
+            color = Color::YELLOW;
+            break;
+        case LogLevels::ERROR:
+            color = Color::RED;
+            break;
+        default:
+            color = Color::RESET;
+            break;
     }
-    else if (level == LogLevels::INFO) {
-        std::cout << Color::CYAN
-                  << "[" << level << "] " << time << ": "
-                  << message
-                  << Color::RESET << std::endl;
-    }
-    else if (level == LogLevels::WARNING) {
-        std::cout << Color::YELLOW
-                  << "[" << level << "] " << time << ": "
-                  << message
-                  << Color::RESET << std::endl;
-    }
-    else if (level == LogLevels::ERROR) {
-        std::cout << Color::RED
-                  << "[" << level << "] " << time << ": "
-                  << message
-                  << Color::RESET << std::endl;
-    }
+
+    std::cout << color
+        << "[" << static_cast<int>(level) << "] " << time << ": "
+        << message
+        << Color::RESET << std::endl;
+
 }
 
-void Logger::log_levels(const std::vector<int>& levels) {
+void Logger::log_levels(const std::vector<LogLevels>& levels) {
     only_log_levels = levels;
 }

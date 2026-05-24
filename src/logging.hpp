@@ -1,15 +1,16 @@
 #pragma once
 
+#include "config.hpp"
+
 #include <map>
 #include <string>
 #include <vector>
 
-class LogLevels {
-public:
-    static constexpr int DEBUG = 0;
-    static constexpr int INFO = 1;
-    static constexpr int WARNING = 2;
-    static constexpr int ERROR = 3;
+enum class LogLevels : int {
+    DEBUG = 0,
+    INFO = 1,
+    WARNING = 2,
+    ERROR = 3
 };
 
 namespace Color {
@@ -21,8 +22,8 @@ namespace Color {
 };
 
 class Logger {
-    std::map<int, std::vector<std::string>> log_messages;
-    std::vector<int> only_log_levels;
+    std::map<LogLevels, std::vector<std::string>> log_messages;
+    std::vector<LogLevels> only_log_levels;
 
     static std::string current_time();
     static std::string to_string_any(const std::string& msg);
@@ -35,6 +36,6 @@ public:
     void log_info(const std::string& message);
     void log_warning(const std::string& message);
     void log_error(const std::string& message);
-    void _log(const std::string& message, int level);
-    void log_levels(const std::vector<int>& levels);
+    void _log(const std::string& message, LogLevels level);
+    void log_levels(const std::vector<LogLevels>& levels);
 };

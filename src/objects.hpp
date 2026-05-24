@@ -1,10 +1,15 @@
 #pragma once
 
+#include "config.hpp"
+#include "logging.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <concepts>
+#include <cpr/cpr.h>
 #include <filesystem>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <semaphore>
 #include <string>
 #include <tuple>
@@ -13,15 +18,6 @@
 #include <utility>
 #include <variant>
 
-#include <cpr/cpr.h>
-#include <nlohmann/json.hpp>
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
-
-#include "config.hpp"
-#include "logging.hpp"
-
 #define MAX_CONCURRENCY_WEBSITE_CAPTURE 1000
 
 inline Config my_config;
@@ -29,7 +25,7 @@ inline Config my_config;
 using date = std::chrono::year_month_day;
 using day_time = std::chrono::seconds;
 using datetime = std::chrono::sys_time<std::chrono::seconds>;
-using uuid = boost::uuids::uuid;
+using uuid = str;
 using json = nlohmann::json;
 
 template <typename T>
@@ -115,7 +111,7 @@ public:
     std::ostream& print(std::ostream& os) const;
 };
 
-class Subject: public Base_Entity {
+class Subject final : public Base_Entity {
 public:
     Subject(str n, str ln, int i);
     ~Subject() override;
@@ -126,7 +122,7 @@ public:
 };
 
 
-class Class: public Base_Entity {
+class Class final : public Base_Entity {
 public:
     Class(str n, str ln, int i);
     ~Class() override;
@@ -134,7 +130,7 @@ public:
     [[nodiscard]] str to_string() const override;
 };
 
-class Room : public Base_Entity {
+class Room final : public Base_Entity {
 public:
     Room(str n, str ln, int i);
     ~Room() override;
@@ -142,7 +138,7 @@ public:
     [[nodiscard]] str to_string() const override;
 };
 
-class Teacher : public Base_Entity {
+class Teacher final : public Base_Entity {
 public:
     Teacher(str n, str ln, int i);
     ~Teacher() override;
@@ -162,7 +158,7 @@ public:
     [[nodiscard]] str to_string() const override;
 };
 
-class Department : public Base_Entity {
+class Department final : public Base_Entity {
 public:
     Department(str n, str ln, int i);
     ~Department() override;
@@ -393,7 +389,7 @@ public:
 
     // Returns map of sanitized filename -> PNG bytes
     static std::map<str, std::vector<uint8_t>> capture_all_images(
-        const int concurrency_website_capture,
+        int concurrency_website_capture,
         const std::vector<std::pair<std::tuple<str, str>, str>>& pages
     );
 
@@ -502,27 +498,27 @@ public:
 
     void log_out(uuid unique_id);
 
-    std::vector<Class> all_klassen();
+    [[nodiscard]] std::vector<Class> all_klassen();
 
-    std::vector<Room> all_rooms() const;
+    [[nodiscard]] std::vector<Room> all_rooms() const;
 
-    std::vector<Subject> all_subjects() const;
+    [[nodiscard]] std::vector<Subject> all_subjects() const;
 
-    std::vector<Department> all_departments() const;
+    [[nodiscard]] std::vector<Department> all_departments() const;
 
-    std::vector<Holiday> all_holidays() const;
+    [[nodiscard]] std::vector<Holiday> all_holidays() const;
 
-    std::vector<SchoolYear> all_schoolyears() const;
+    [[nodiscard]] std::vector<SchoolYear> all_schoolyears() const;
 
-    SchoolYear return_current_year() const;
+    [[nodiscard]] SchoolYear return_current_year() const;
 
-    std::optional<Class> get_klasse_by_name(const str& name);
+    [[nodiscard]] std::optional<Class> get_klasse_by_name(const str& name);
 
-    std::optional<Room> get_room_by_name(const str& name) const;
+    [[nodiscard]] std::optional<Room> get_room_by_name(const str& name) const;
 
-    std::optional<Teacher> get_teacher_by_name(const str& name) const;
+    [[nodiscard]] std::optional<Teacher> get_teacher_by_name(const str& name) const;
 
-    std::optional<Teacher> get_teacher_by_long_name(const str& name) const;
+    [[nodiscard]] std::optional<Teacher> get_teacher_by_long_name(const str& name) const;
 
     TimeTable timetable_extended(
         const std::variant<Class, Room, Teacher>& element,
@@ -538,7 +534,7 @@ public:
 
     // TODO: substitutions
 
-    std::vector<str> timegrid_units() const;
+    [[nodiscard]] std::vector<str> timegrid_units() const;
 
     // TODO: students
 
@@ -556,7 +552,7 @@ public:
 
     // TODO: class_reg_category_groups
 
-    TimeTable my_timetable(
+    [[nodiscard]] TimeTable my_timetable(
         date start,
         date end
     ) const;
@@ -589,7 +585,7 @@ private:
         int max_attempts
     ) const;
 
-    std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> multithreading_result(
+    [[nodiscard]] std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> multithreading_result(
         float sleep_time,
         int max_threads,
          str raw_date,

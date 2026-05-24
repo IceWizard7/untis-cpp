@@ -1,22 +1,24 @@
 #include "objects.hpp"
 
+#include "config.hpp"
+#include "exceptions.hpp"
+
 #include <algorithm>
+#include <array>
+#include <bitset>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <random>
 #include <ranges>
 #include <semaphore>
-#include <unordered_set>
 #include <sstream>
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
-#include <bitset>
-
-#include "config.hpp"
-#include "exceptions.hpp"
 
 day_time Date_Utils::datetime_to_time(const datetime date_time) {
     return std::chrono::seconds{date_time - std::chrono::floor<std::chrono::days>(date_time)};
@@ -2205,7 +2207,34 @@ Session::Session(
 }
 
 uuid Session::get_unique_uuid() {
-    return boost::uuids::random_generator()();
+    // UUID version 4
+    thread_local std::mt19937_64 rng{std::random_device{}()};
+    std::uniform_int_distribution dist(0, 255);
+
+    std::array<unsigned char, 16> bytes{};
+
+    for (auto& byte : bytes) {
+        byte = static_cast<unsigned char>(dist(rng));
+    }
+
+    // UUID version 4
+    bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x40);
+
+    // RFC 4122 variant
+    bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
+
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+
+    for (std::size_t i = 0; i < bytes.size(); ++i) {
+        oss << std::setw(2) << static_cast<int>(bytes[i]);
+
+        if (i == 3 || i == 5 || i == 7 || i == 9) {
+            oss << '-';
+        }
+    }
+
+    return oss.str();
 }
 
 json Session::rpc_request(
