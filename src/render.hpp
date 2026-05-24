@@ -13,6 +13,7 @@ public:
 
     // Must be called once before any rendering
     int setup();
+
     static std::string sanitize_filename(const std::string& name);
     static std::vector<uint8_t> base64_decode(const std::string& b64);
     static bool write_base64_png(const std::string& base64, const std::string& filename);

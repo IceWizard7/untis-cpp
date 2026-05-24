@@ -22,20 +22,20 @@ namespace Color {
 };
 
 class Logger {
-    std::map<LogLevels, std::vector<std::string>> log_messages;
+    std::map<LogLevels, std::vector<str>> log_messages;
     std::vector<LogLevels> only_log_levels;
 
-    static std::string current_time();
-    static std::string to_string_any(const std::string& msg);
+    static str current_time();
+    static str to_string_any(const str& msg);
 
 public:
     Logger();
     ~Logger();
 
-    void log_debug(const std::string& message);
-    void log_info(const std::string& message);
-    void log_warning(const std::string& message);
-    void log_error(const std::string& message);
-    void _log(const std::string& message, LogLevels level);
+    void log_debug(const str& message);
+    void log_info(const str& message);
+    void log_warning(const str& message);
+    void log_error(const str& message);
+    void _log(const str& message, LogLevels level);
     void log_levels(const std::vector<LogLevels>& levels);
 };

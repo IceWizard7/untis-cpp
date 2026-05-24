@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include "config.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -9,9 +10,9 @@
 #include <regex>
 #include <thread>
 
-// ---------- private static helpers ----------
+// Helpers
 
-std::string Renderer::get_websocket_url() {
+str Renderer::get_websocket_url() {
     ix::HttpClient httpClient;
     const auto response = httpClient.get("http://127.0.0.1:9222/json", httpClient.createRequest());
 
@@ -20,16 +21,16 @@ std::string Renderer::get_websocket_url() {
         return "";
     }
 
-    const std::string& body = response->body;
+    const str& body = response->body;
     const auto pos = body.find("\"webSocketDebuggerUrl\"");
-    if (pos == std::string::npos) { std::cerr << "No webSocketDebuggerUrl found\n"; return ""; }
+    if (pos == str::npos) { std::cerr << "No webSocketDebuggerUrl found\n"; return ""; }
 
     const auto start = body.find('"', body.find(':', pos) + 1) + 1;
     return body.substr(start, body.find('"', start) - start);
 }
 
-std::string Renderer::escape_for_json(const std::string& s) {
-    std::string out;
+str Renderer::escape_for_json(const str& s) {
+    str out;
     out.reserve(s.size());
     for (const char c : s) {
         if      (c == '"')  out += "\\\"";
@@ -41,12 +42,12 @@ std::string Renderer::escape_for_json(const std::string& s) {
     return out;
 }
 
-std::string Renderer::sanitize_filename(const std::string& name) {
-    // mirrors: re.sub(r'[^A-Za-z0-9\-_. ]+', '_', name)
+str Renderer::sanitize_filename(const str& name) {
+    // Same as: re.sub(r'[^A-Za-z0-9\-_. ]+', '_', name)
     return std::regex_replace(name, std::regex("[^A-Za-z0-9\\-_. ]+"), "_");
 }
 
-std::vector<uint8_t> Renderer::base64_decode(const std::string& b64)
+std::vector<uint8_t> Renderer::base64_decode(const str& b64)
 {
     static constexpr auto T = []() {
         std::array<int, 256> t{};
@@ -77,13 +78,13 @@ std::vector<uint8_t> Renderer::base64_decode(const std::string& b64)
     return out;
 }
 
-bool Renderer::write_base64_png(const std::string& base64, const std::string& filename)
+bool Renderer::write_base64_png(const str& base64, const str& filename)
 {
     // Strip optional data-URL prefix:  "data:image/png;base64,<data>"
-    const std::string* src = &base64;
-    std::string stripped;
+    const str* src = &base64;
+    str stripped;
     auto comma = base64.find(',');
-    if (base64.rfind("data:image", 0) == 0 && comma != std::string::npos) {
+    if (base64.rfind("data:image", 0) == 0 && comma != str::npos) {
         stripped = base64.substr(comma + 1);
         src = &stripped;
     }
@@ -102,20 +103,21 @@ bool Renderer::write_base64_png(const std::string& base64, const std::string& fi
     return file.good();
 }
 
-std::string Renderer::msg(const std::string& body) {
+str Renderer::msg(const str& body) {
     return "{\"id\":" + std::to_string(msg_id_++) + "," + body + "}";
 }
 
-// ---------- setup ----------
 
 Renderer::Renderer() = default;
 
 Renderer::~Renderer() = default;
 
+// Setup
+
 int Renderer::setup() {
     ix::initNetSystem();
 
-    const std::string ws_url = get_websocket_url();
+    const str ws_url = get_websocket_url();
     if (ws_url.empty()) return 1;
 
     std::cout << "Connecting to: " << ws_url << "\n";
@@ -123,15 +125,15 @@ int Renderer::setup() {
 
     ws_.setOnMessageCallback([this](const ix::WebSocketMessagePtr& m) {
         if (m->type != ix::WebSocketMessageType::Message) return;
-        const std::string& s = m->str;
+        const str& s = m->str;
 
-        if (s.find("frameTree") != std::string::npos) {
+        if (s.find("frameTree") != str::npos) {
             const auto pos = s.find(R"("id":")");
-            if (pos != std::string::npos)
+            if (pos != str::npos)
                 frame_id_ = s.substr(pos + 6, s.find('"', pos + 6) - (pos + 6));
         }
 
-        if (s.find(R"("data":")") != std::string::npos) {
+        if (s.find(R"("data":")") != str::npos) {
             {
                 const auto pos   = s.find(R"("data":")");
                 const auto start = pos + 8;
@@ -142,31 +144,31 @@ int Renderer::setup() {
         }
 
         // Correct CDP structure: result -> result -> type/value
-        if (s.find("\"result\":{\"result\":{\"type\":\"string\"") != std::string::npos) {
+        if (s.find("\"result\":{\"result\":{\"type\":\"string\"") != str::npos) {
             auto p = s.find(R"("value":")");
-            if (p != std::string::npos) {
+            if (p != str::npos) {
                 const auto start = p + 9;
 
                 // Unescape \" sequences to recover the inner JSON
-                std::string rect_json;
+                str rect_json;
                 for (size_t i = start; i < s.size(); ++i) {
                     if (s[i] == '\\' && i + 1 < s.size()) {
                         rect_json += s[i + 1];
                         ++i;
                     } else if (s[i] == '"') {
-                        break; // real closing quote
+                        break; // Real closing quote
                     } else {
                         rect_json += s[i];
                     }
                 }
 
-                std::cout << "rect_json: " << rect_json << "\n"; // temporary debug
+                std::cout << "rect_json: " << rect_json << "\n"; // Temporary debug
 
-                auto extract = [&](const std::string& key) -> double {
+                auto extract = [&](const str& key) -> double {
                     auto kp = rect_json.find("\"" + key + "\":");
-                    if (kp == std::string::npos) return 0.0;
+                    if (kp == str::npos) return 0.0;
                     kp = rect_json.find_first_of("-0123456789.", kp + key.size() + 3);
-                    if (kp == std::string::npos) return 0.0;
+                    if (kp == str::npos) return 0.0;
                     return std::stod(rect_json.substr(kp,
                         rect_json.find_first_not_of("-0123456789.", kp) - kp));
                 };
@@ -177,7 +179,7 @@ int Renderer::setup() {
             }
         }
 
-        if (s.find("Page.loadEventFired") != std::string::npos) {
+        if (s.find("Page.loadEventFired") != str::npos) {
             page_loaded_ = true;
         }
     });
@@ -196,14 +198,13 @@ int Renderer::setup() {
     return 0;
 }
 
-// ---------- core rendering ----------
+// Core Rendering
 
-std::string Renderer::generate_base64_image(const std::string& html) {
-    // return generate_base64_image(html, 140, 200, 3.78, 3.0);
+str Renderer::generate_base64_image(const str& html) {
     return generate_base64_image(html, 140, 200, 3.78, 3.0);
 }
 
-std::string Renderer::generate_base64_image(const std::string& html, const int width_mm, const int height_mm, const double px_per_mm, const double scale) {
+str Renderer::generate_base64_image(const str& html, const int width_mm, const int height_mm, const double px_per_mm, const double scale) {
     const int vp_w = static_cast<int>(std::round(width_mm  * px_per_mm));
     const int vp_h = static_cast<int>(std::round(height_mm * px_per_mm));
     set_device_metrics(vp_w, vp_h, scale);
@@ -230,7 +231,7 @@ std::string Renderer::generate_base64_image(const std::string& html, const int w
 
     // Build clip rectangle from real content size
     auto fmt = [](const double v){ return std::to_string(v); };
-    const std::string clip =
+    const str clip =
         "\"x\":"      + fmt(content_size_.x)      + ","
         "\"y\":"      + fmt(content_size_.y)      + ","
         "\"width\":"  + fmt(content_size_.width)  + ","
@@ -242,7 +243,7 @@ std::string Renderer::generate_base64_image(const std::string& html, const int w
         "\"method\":\"Page.captureScreenshot\","
         "\"params\":{"
         "\"format\":\"png\","
-        "\"captureBeyondViewport\":true,"   // escape the viewport box
+        "\"captureBeyondViewport\":true,"   // Escape the viewport box
         "\"clip\":{" + clip + "}}"));
 
     while (!got_screenshot_) {

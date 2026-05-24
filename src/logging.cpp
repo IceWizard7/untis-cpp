@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-std::string Logger::current_time() {
+str Logger::current_time() {
     const auto now = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(now);
     const std::tm* tm = std::localtime(&t);
@@ -17,7 +17,7 @@ std::string Logger::current_time() {
     return oss.str();
 }
 
-std::string Logger::to_string_any(const std::string& msg) {
+str Logger::to_string_any(const str& msg) {
     return msg;
 }
 
@@ -36,26 +36,26 @@ Logger::Logger() {
 
 Logger::~Logger() = default;
 
-void Logger::log_debug(const std::string& message) {
+void Logger::log_debug(const str& message) {
     _log(message, LogLevels::DEBUG);
 }
 
-void Logger::log_info(const std::string& message) {
+void Logger::log_info(const str& message) {
     _log(message, LogLevels::INFO);
 }
 
-void Logger::log_warning(const std::string& message) {
+void Logger::log_warning(const str& message) {
     _log(message, LogLevels::WARNING);
 }
 
-void Logger::log_error(const std::string& message) {
+void Logger::log_error(const str& message) {
     _log(message, LogLevels::ERROR);
 }
 
-void Logger::_log(const std::string& message, LogLevels level) {
+void Logger::_log(const str& message, LogLevels level) {
     log_messages[level].push_back(message);
 
-    const std::string time = current_time();
+    const str time = current_time();
 
     const char* color;
 

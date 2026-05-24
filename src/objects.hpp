@@ -84,7 +84,7 @@ public:
 class Str_Utils {
 public:
     template<typename Container, typename Projection>
-    static std::string join(const std::string& sep, const Container& items, Projection proj);
+    static str join(const str& sep, const Container& items, Projection proj);
 
     template<typename Container>
     static str join(const str& sep, const Container& items);
@@ -435,7 +435,7 @@ class Cache {
     };
 
 private:
-    std::unordered_map<std::string, json> cache;
+    std::unordered_map<str, json> cache;
     std::optional<std::filesystem::path> cache_file_path;
 public:
     explicit Cache(std::optional<std::filesystem::path> cache_file) : cache_file_path(std::move(cache_file)) {}
@@ -443,10 +443,10 @@ public:
     [[nodiscard]] std::optional<double> cache_file_last_changed(const std::optional<str>& file_path) const;
 
     template<typename T>
-    std::optional<T> get_from_cache(const std::string& key);
+    std::optional<T> get_from_cache(const str& key);
 
     template<typename T>
-    void update_cache(const std::string& key, T value);
+    void update_cache(const str& key, T value);
 
     void clear_cache();
 

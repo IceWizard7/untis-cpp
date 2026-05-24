@@ -1,7 +1,6 @@
 #include "config.hpp"
 
 #include <filesystem>
-#include <map>
 #include <string>
 #include <vector>
 
