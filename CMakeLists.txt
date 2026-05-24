@@ -24,14 +24,6 @@ add_library(Untis STATIC
 # Public headers for consumers
 target_include_directories(Untis PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/uuid/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/config/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/assert/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/core/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/static_assert/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/throw_exception/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/boost/libs/type_traits/include
 )
 
 # Link dependencies
