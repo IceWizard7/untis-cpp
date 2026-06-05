@@ -364,7 +364,8 @@ public:
     [[nodiscard]] str to_personal_html(
         const std::variant<Class, Room, Teacher>& featuring_object,
         date target_date,
-        const str& person_name
+        const str& person_name,
+        const int& n_days = 1
     ) const;
 
     [[nodiscard]] str to_regular_html(

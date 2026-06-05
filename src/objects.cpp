@@ -1601,21 +1601,42 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
 [[nodiscard]] str TimeTable::to_personal_html(
     const std::variant<Class, Room, Teacher>& featuring_object,
     date target_date,
-    const str& person_name
+    const str& person_name,
+    const int& n_days
 ) const {
-    str english_weekday = Date_Utils::date_to_str(target_date, "%A");
-    
-    auto it = std::ranges::find(my_config.language_config.weekday_name_mapping,
-                            english_weekday, &std::pair<str, str>::first);
-    const str& native_weekday = it->second;
+    // str english_weekday = Date_Utils::date_to_str(target_date, "%A");
+    std::vector<str> english_weekdays;
+    std::vector<str> native_weekdays;
+
+    int bounded_n_days = n_days > 7 ? 7 : n_days;
+
+    english_weekdays.reserve(bounded_n_days);
+    native_weekdays.reserve(bounded_n_days);
+
+    for (int i = 0; i < bounded_n_days; ++i) {
+        str english_weekday = Date_Utils::date_to_str(Date_Utils::add_days(target_date, i), "%A");
+        english_weekdays.push_back(english_weekday);
+
+        auto it = std::ranges::find(my_config.language_config.weekday_name_mapping,
+                        english_weekday, &std::pair<str, str>::first);
+        const str& native_weekday = it->second;
+        native_weekdays.push_back(native_weekday);
+    }
 
     std::map<str, std::map<str, std::vector<Period>>> final_hours;
-    final_hours[native_weekday] = {};
+    for (const auto& native_weekday : native_weekdays) {
+        final_hours[native_weekday] = {};
+    }
 
     for (const auto& period : periods) {
-        if (Date_Utils::datetime_to_str(period.start, "%A") != english_weekday) {
+        if (!Vector_Utils::contains_value(english_weekdays, Date_Utils::datetime_to_str(period.start, "%A"))) {
             continue;
         }
+
+        const str& english_weekday = Date_Utils::datetime_to_str(period.start, "%A");
+        auto it = std::ranges::find(my_config.language_config.weekday_name_mapping,
+                english_weekday, &std::pair<str, str>::first);
+        const str& native_weekday = it->second;
 
         // Actual start & end time, ex. 08:40 & 09:35, or irregular times: 00:00 & 23:59 (in one lesson)
         day_time period_start_time = Date_Utils::datetime_to_time(period.start);
@@ -1653,9 +1674,11 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
             Date_Utils::date_to_str(Date_Utils::add_days(target_date, -1), "%d-%m-%Y"),
             my_config.language_config.yesterday),
 
-        std::format("{} {} ({})",
+        std::format("{} {} ({} {})",
             my_config.language_config.personal_timetable,
             person_name,
+            std::ranges::find(my_config.language_config.weekday_name_mapping,
+                Date_Utils::date_to_str(target_date, "%A"), &std::pair<str, str>::first)->second.substr(0, 2),
             Date_Utils::date_to_str(target_date, "%d.%m.%Y")),
 
         std::format("<a href=\"?date={}\"><button>{}</button></a>",
@@ -1676,129 +1699,133 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
             std::get<0>(my_config.html_style_config.table_header_base_rgb),
             std::get<1>(my_config.html_style_config.table_header_base_rgb),
             std::get<2>(my_config.html_style_config.table_header_base_rgb),
-            my_config.language_config.time),
+            my_config.language_config.time)
+    };
 
-        std::format("<th style=\"background-color: rgb({},{},{});\">{}</th>",
+    for (const auto& native_weekday : native_weekdays) {
+        html.push_back(
+            std::format("<th style=\"background-color: rgb({},{},{});\">{}</th>",
             std::get<0>(rgb_value),
             std::get<1>(rgb_value),
             std::get<2>(rgb_value),
-            native_weekday.substr(0, 2)),
-
-        "<tr>"
-    };
+            native_weekday.substr(0, 2)));
+    }
+    html.push_back("<tr>");
 
     for (int count = 0; count < my_config.html_style_config.lesson_time_ranges.size(); count++) {
         const auto& time_range = my_config.html_style_config.lesson_time_ranges[count];
         html_add_lesson_time_range(html, count, time_range);
-        std::vector<Period> lessons;
-        if (final_hours.contains(native_weekday) && final_hours.at(native_weekday).contains(time_range)) {
-            lessons = final_hours.at(native_weekday).at(time_range);
-        }
-
-        if (lessons.empty()) {
-            html.emplace_back("<td></td>");
-            continue;
-        }
-
-        std::vector<std::tuple<str, str, str, datetime, datetime>> distinct_lessons_list_formatted;
-
-        for (const auto& lesson : lessons) {
-            auto list_formatted = lesson.formatted_list(featuring_object, false);
-            if (!Vector_Utils::contains_value(distinct_lessons_list_formatted, list_formatted)) {
-                distinct_lessons_list_formatted.push_back(std::move(list_formatted));
-            }
-        }
-
-        std::vector<str> formatted_lessons;
-        std::unordered_set<str> seen_lesson_strings;
-
-        for (const auto& lesson : lessons) {
-            auto [lesson_code, rows_changed] = lesson.get_period_code(featuring_object);
-
-            auto list_formatted = lesson.formatted_list(featuring_object, false);
-            auto string_formatted = lesson.formatted_string(featuring_object, false);
-            str text_color;
-
-            if (lesson_code == "missed") {
-                text_color = "color: #D32F2F;";
-            } else if (lesson_code == "extra") {
-                text_color = "color: #2E7D32;";
+        for (const auto& native_weekday : native_weekdays) {
+            std::vector<Period> lessons;
+            if (final_hours.contains(native_weekday) && final_hours.at(native_weekday).contains(time_range)) {
+                lessons = final_hours.at(native_weekday).at(time_range);
             }
 
-            str short_subject_name_text_color = text_color;
+            if (lessons.empty()) {
+                html.emplace_back("<td></td>");
+                continue;
+            }
 
-            if (rows_changed.first || rows_changed.second) {
-                if (text_color.empty()) {
-                    short_subject_name_text_color = "color: #F9A825;";
+            std::vector<std::tuple<str, str, str, datetime, datetime>> distinct_lessons_list_formatted;
+
+            for (const auto& lesson : lessons) {
+                auto list_formatted = lesson.formatted_list(featuring_object, false);
+                if (!Vector_Utils::contains_value(distinct_lessons_list_formatted, list_formatted)) {
+                    distinct_lessons_list_formatted.push_back(std::move(list_formatted));
                 }
             }
 
-            str formatted_lesson = std::format(
-                "<span>{}</span><br>"
-                "<span{}>[{}]</span><br>"
-                "<span{}>({})</span>",
-                std::get<0>(list_formatted),
-                (rows_changed.first  && lesson_code == "regular") ? " style=\"color: #F9A825;\"" : "",
-                std::get<1>(list_formatted),
-                (rows_changed.second && lesson_code == "regular") ? " style=\"color: #F9A825;\"" : "",
-                std::get<2>(list_formatted)
-            );
+            std::vector<str> formatted_lessons;
+            std::unordered_set<str> seen_lesson_strings;
 
-            if (lessons.size() == 1) {
-                formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", text_color, formatted_lesson));
-            } else {
-                if (seen_lesson_strings.contains(string_formatted)) {
+            for (const auto& lesson : lessons) {
+                auto [lesson_code, rows_changed] = lesson.get_period_code(featuring_object);
+
+                auto list_formatted = lesson.formatted_list(featuring_object, false);
+                auto string_formatted = lesson.formatted_string(featuring_object, false);
+                str text_color;
+
+                if (lesson_code == "missed") {
+                    text_color = "color: #D32F2F;";
+                } else if (lesson_code == "extra") {
+                    text_color = "color: #2E7D32;";
+                }
+
+                str short_subject_name_text_color = text_color;
+
+                if (rows_changed.first || rows_changed.second) {
+                    if (text_color.empty()) {
+                        short_subject_name_text_color = "color: #F9A825;";
+                    }
+                }
+
+                str formatted_lesson = std::format(
+                    "<span>{}</span><br>"
+                    "<span{}>[{}]</span><br>"
+                    "<span{}>({})</span>",
+                    std::get<0>(list_formatted),
+                    (rows_changed.first  && lesson_code == "regular") ? " style=\"color: #F9A825;\"" : "",
+                    std::get<1>(list_formatted),
+                    (rows_changed.second && lesson_code == "regular") ? " style=\"color: #F9A825;\"" : "",
+                    std::get<2>(list_formatted)
+                );
+
+                if (lessons.size() == 1) {
+                    formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", text_color, formatted_lesson));
+                } else {
+                    if (seen_lesson_strings.contains(string_formatted)) {
+                        continue;
+                    }
+                    seen_lesson_strings.insert(string_formatted);
+
+                    if (distinct_lessons_list_formatted.size() < 5) {
+                        formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:1px; vertical-align: top; margin-left:1px; {}\">{}</span>", text_color, formatted_lesson));
+                    } else {
+                        formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", text_color, std::get<0>(list_formatted)));
+                    }
+                }
+            }
+
+            // Stripe colour (based on first eligible subject / fallback to first subject)
+            std::tuple<int, int, int> rgba_value = my_config.timetable_mapping_config.default_subject_color;
+
+            // Collect eligible subjects (None or irregular)
+            std::vector<Subject> eligible_subjects;
+
+            for (const auto& lesson : lessons) {
+                str p_code = lesson.get_period_code(featuring_object).first;
+                if (p_code != "regular" && p_code != "extra") {
                     continue;
                 }
-                seen_lesson_strings.insert(string_formatted);
+                if (lesson.subjects.empty()) {
+                    continue;
+                }
+                Subject su = lesson.subjects.at(0);
+                eligible_subjects.push_back(su);
+            }
 
-                if (distinct_lessons_list_formatted.size() < 5) {
-                    formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:1px; vertical-align: top; margin-left:1px; {}\">{}</span>", text_color, formatted_lesson));
-                } else {
-                    formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", text_color, std::get<0>(list_formatted)));
+            std::optional<Subject> chosen_subject;
+
+            if (!eligible_subjects.empty()) {
+                std::ranges::sort(eligible_subjects, {}, &Subject::name);
+                chosen_subject = eligible_subjects.at(0);
+            } else {
+                if (!lessons.empty() && !lessons.at(0).subjects.empty()) {
+                    chosen_subject = lessons.at(0).subjects.at(0);
                 }
             }
-        }
 
-        // Stripe colour (based on first eligible subject / fallback to first subject)
-        std::tuple<int, int, int> rgba_value = my_config.timetable_mapping_config.default_subject_color;
-
-        // Collect eligible subjects (None or irregular)
-        std::vector<Subject> eligible_subjects;
-
-        for (const auto& lesson : lessons) {
-            str p_code = lesson.get_period_code(featuring_object).first;
-            if (p_code != "regular" && p_code != "extra") {
-                continue;
+            if (chosen_subject.has_value()) {
+                rgba_value = chosen_subject->color();
             }
-            if (lesson.subjects.empty()) {
-                continue;
-            }
-            Subject su = lesson.subjects.at(0);
-            eligible_subjects.push_back(su);
+
+            html.push_back(std::format("<td style=\"--stripe-color: rgba({},{},{}); white-space: nowrap;\">{}</td>",
+                std::get<0>(rgba_value),
+                std::get<1>(rgba_value),
+                std::get<2>(rgba_value),
+                Str_Utils::join(formatted_lessons)
+            ));
         }
-
-        std::optional<Subject> chosen_subject;
-
-        if (!eligible_subjects.empty()) {
-            std::ranges::sort(eligible_subjects, {}, &Subject::name);
-            chosen_subject = eligible_subjects.at(0);
-        } else {
-            if (!lessons.empty() && !lessons.at(0).subjects.empty()) {
-                chosen_subject = lessons.at(0).subjects.at(0);
-            }
-        }
-
-        if (chosen_subject.has_value()) {
-            rgba_value = chosen_subject->color();
-        }
-
-        html.push_back(std::format("<td style=\"--stripe-color: rgba({},{},{}); white-space: nowrap;\">{}</td>",
-            std::get<0>(rgba_value),
-            std::get<1>(rgba_value),
-            std::get<2>(rgba_value),
-            Str_Utils::join(formatted_lessons)
-        ));
         html.emplace_back("</tr>");
     }
 
