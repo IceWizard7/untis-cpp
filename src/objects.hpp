@@ -182,9 +182,17 @@ public:
     explicit Base_Date_Entity(const std::unordered_map<str, std::variant<str, int>>& raw_obj);
 };
 
-class Holiday : public Base_Date_Entity {};
+class Holiday : public Base_Date_Entity {
+public:
+    explicit Holiday(const std::unordered_map<str, std::variant<str, int>>& raw_obj)
+    : Base_Date_Entity(raw_obj) {}
+};
 
-class SchoolYear : public Base_Date_Entity {};
+class SchoolYear : public Base_Date_Entity {
+public:
+    explicit SchoolYear(const std::unordered_map<str, std::variant<str, int>>& raw_obj)
+    : Base_Date_Entity(raw_obj) {}
+};
 
 class Period {
 public:
@@ -365,7 +373,7 @@ public:
         const std::variant<Class, Room, Teacher>& featuring_object,
         date target_date,
         const str& person_name,
-        const int& n_days = 1
+        int n_days = 1
     ) const;
 
     [[nodiscard]] str to_regular_html(
@@ -398,8 +406,8 @@ public:
         int concurrency_website_capture,
         const std::variant<Class, Room, Teacher>& featuring_object,
         int user_id,
-        date start_date,
-        date end_date
+        const date& start_date,
+        const date& end_date
     ) const;
 
     [[nodiscard]] unsigned long count_appearances(
@@ -441,7 +449,7 @@ private:
 public:
     explicit Cache(std::optional<std::filesystem::path> cache_file) : cache_file_path(std::move(cache_file)) {}
 
-    [[nodiscard]] std::optional<double> cache_file_last_changed(const std::optional<str>& file_path) const;
+    [[nodiscard]] std::optional<double> cache_file_last_changed() const;
 
     template<typename T>
     std::optional<T> get_from_cache(const str& key);
@@ -466,6 +474,7 @@ public:
     str server;
     str school;
     str client;
+    Logger my_logger;
 
     Session(
         str session_name,
@@ -497,72 +506,85 @@ public:
 
     void log_in(uuid unique_id);
 
-    void log_out(uuid unique_id);
+    void log_out(const uuid& unique_id);
 
     [[nodiscard]] std::vector<Class> all_klassen();
 
-    [[nodiscard]] std::vector<Room> all_rooms() const;
+    [[nodiscard]] std::vector<Room> all_rooms();
 
-    [[nodiscard]] std::vector<Subject> all_subjects() const;
+    [[nodiscard]] std::vector<Subject> all_subjects();
 
-    [[nodiscard]] std::vector<Department> all_departments() const;
+    [[nodiscard]] std::vector<Department> all_departments();
 
-    [[nodiscard]] std::vector<Holiday> all_holidays() const;
+    [[nodiscard]] std::vector<Holiday> all_holidays();
 
-    [[nodiscard]] std::vector<SchoolYear> all_schoolyears() const;
+    [[nodiscard]] std::vector<SchoolYear> all_schoolyears();
 
-    [[nodiscard]] SchoolYear return_current_year() const;
+    [[nodiscard]] SchoolYear return_current_year();
 
     [[nodiscard]] std::optional<Class> get_klasse_by_name(const str& name);
 
-    [[nodiscard]] std::optional<Room> get_room_by_name(const str& name) const;
+    [[nodiscard]] std::optional<Room> get_room_by_name(const str& name);
 
-    [[nodiscard]] std::optional<Teacher> get_teacher_by_name(const str& name) const;
+    static std::optional<Teacher> get_teacher_by_name(const str& name);
 
-    [[nodiscard]] std::optional<Teacher> get_teacher_by_long_name(const str& name) const;
+    static std::optional<Teacher> get_teacher_by_long_name(const str& name);
 
     TimeTable timetable_extended(
         const std::variant<Class, Room, Teacher>& element,
-        date start,
-        date end
+        const date& start,
+        const date& end
     );
 
-    // TODO: teachers
+    json teachers();
 
-    // TODO: statusdata
+    json statusdata();
 
-    // TODO: last_import_time
+    int last_import_time();
 
-    // TODO: substitutions
+    json substitutions(const date& start, const date& end, int department_id = 0);
 
-    [[nodiscard]] std::vector<str> timegrid_units() const;
+    [[nodiscard]] std::vector<str> timegrid_units();
 
-    // TODO: students
+    json students();
 
-    // TODO: exam_types
+    json exam_types();
 
-    // TODO: exams
+    json exams(const date& start, const date& end, int exam_type_id);
 
-    // TODO: timetable_with_absences
+    json timetable_with_absences(const date& start, const date& end);
 
-    // TODO: class_reg_events
+    json class_reg_events(const date& start, const date& end);
 
-    // TODO: class_reg_event_for_id
+    json class_reg_event_for_id(const date& start, const date& end, const json& type_and_id);
 
-    // TODO: class_reg_categories
+    json class_reg_categories();
 
-    // TODO: class_reg_category_groups
+    json class_reg_category_groups();
 
     [[nodiscard]] TimeTable my_timetable(
+        const date& start,
+        const date& end
+    );
+
+    json _search(const str& surname, const str& fore_name, int dob = 0, int what = -1);
+
+    std::map<str, std::variant<str, int, json>> get_student(const str& surname, const str& fore_name, int dob = 0);
+
+    std::map<str, std::variant<str, int, json>> get_teacher_from_search(const str& surname, const str& fore_name, int dob = 0);
+
+    [[nodiscard]] std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> multithreading_result(
+        float sleep_time,
+        int max_threads,
+        str raw_date,
         date start,
-        date end
-    ) const;
-
-    // TODO: _search
-
-    // TODO: get_student
-
-    // TODO: get_teacher_from_search
+        date end,
+        str function_name,
+        bool logging,
+        uuid call_id,
+        bool log_out_afterwards,
+        int max_attempts
+    );
 
 private:
     // Internal session tracking
@@ -575,27 +597,14 @@ private:
     Cache cache;
 
     void multithread_worker(
-        std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> raw_result,
+        std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>& raw_result,
         std::mutex& raw_result_lock,
-        Class klasse,
+        const Class& klasse,
         str raw_date,
         date start,
         date end,
         str function_name,
         uuid call_id,
         int max_attempts
-    ) const;
-
-    [[nodiscard]] std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> multithreading_result(
-        float sleep_time,
-        int max_threads,
-         str raw_date,
-         date start,
-         date end,
-         str function_name,
-         bool logging,
-         uuid call_id,
-         bool log_out_afterwards,
-         int max_attempts
-    ) const;
+    );
 };

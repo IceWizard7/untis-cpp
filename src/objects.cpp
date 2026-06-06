@@ -1305,7 +1305,7 @@ std::tuple<str, str> TimeTable::get_table_name(
     std::vector<std::tuple<int, int, int>> water_mark_rgb_value;
 
     // Handle the first 5 full RGB triplets
-    for (int num_header = 0; num_header < 5; num_header++) {
+    for (int num_header = 0; num_header < 5; ++num_header) {
         int offset = num_header * 12;
         int rgb_red = bits4_to_signed_int(water_mark_bits.substr(offset, 4)) * 2 + std::get<0>(base_rgb_value);
         int rgb_green = bits4_to_signed_int(water_mark_bits.substr(offset + 4, 4)) * 2 + std::get<1>(base_rgb_value);
@@ -1359,7 +1359,7 @@ std::tuple<str, str> TimeTable::get_table_name(
             )
         };
 
-        for (int count = 0; count < weekdays.size(); count++) {
+        for (int count = 0; count < weekdays.size(); ++count) {
             const auto& day = weekdays[count];
             html.push_back(std::format("<th style=\"background-color: rgb({}, {}, {});\">{}</th>",
                 std::get<0>(water_mark_rgb_value.at(count + 1)),
@@ -1426,7 +1426,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
 ) const {
     auto [html, weekdays, final_hours] = html_setup(user_id, website, table_name, start_date, end_date);
 
-    for (int count = 0; count <  my_config.html_style_config.lesson_time_ranges.size(); count++) {
+    for (int count = 0; count <  my_config.html_style_config.lesson_time_ranges.size(); ++count) {
         const auto& time_range = my_config.html_style_config.lesson_time_ranges[count];
         html_add_lesson_time_range(html, count, time_range);
 
@@ -1602,7 +1602,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
     const std::variant<Class, Room, Teacher>& featuring_object,
     date target_date,
     const str& person_name,
-    const int& n_days
+    const int n_days
 ) const {
     // str english_weekday = Date_Utils::date_to_str(target_date, "%A");
     std::vector<str> english_weekdays;
@@ -1712,7 +1712,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
     }
     html.push_back("<tr>");
 
-    for (int count = 0; count < my_config.html_style_config.lesson_time_ranges.size(); count++) {
+    for (int count = 0; count < my_config.html_style_config.lesson_time_ranges.size(); ++count) {
         const auto& time_range = my_config.html_style_config.lesson_time_ranges[count];
         html_add_lesson_time_range(html, count, time_range);
         for (const auto& native_weekday : native_weekdays) {
@@ -1781,7 +1781,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
                     if (distinct_lessons_list_formatted.size() < 5) {
                         formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:1px; vertical-align: top; margin-left:1px; {}\">{}</span>", text_color, formatted_lesson));
                     } else {
-                        formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", text_color, std::get<0>(list_formatted)));
+                        formatted_lessons.push_back(std::format("<span style=\"display:inline-block; margin-right:5px; vertical-align: top; margin-left:5px; {}\">{}</span>", short_subject_name_text_color, std::get<0>(list_formatted)));
                     }
                 }
             }
@@ -1847,7 +1847,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str>& html, const int les
 
     bool any_two_week_lesson = false;
 
-    for (int count = 0; count < my_config.html_style_config.lesson_time_ranges.size(); count++) {
+    for (int count = 0; count < my_config.html_style_config.lesson_time_ranges.size(); ++count) {
         const auto& time_range = my_config.html_style_config.lesson_time_ranges[count];
         html_add_lesson_time_range(html, count, time_range);
 
@@ -2065,11 +2065,11 @@ std::map<str, std::vector<uint8_t>> TimeTable::capture_all_images(
 }
 
 std::vector<uint8_t> TimeTable::table_to_image(
-    int concurrency_website_capture,
+    const int concurrency_website_capture,
     const std::variant<Class, Room, Teacher>& featuring_object,
-    int user_id,
-    date start_date,
-    date end_date
+    const int user_id,
+    const date& start_date,
+    const date& end_date
 ) const {
     std::tuple<str, str> table_name = get_table_name(featuring_object, start_date, end_date);
     str html_content = to_untis_html(featuring_object, user_id, table_name, start_date, end_date);
@@ -2090,7 +2090,7 @@ unsigned long TimeTable::count_appearances(const Period& period_to_count) const 
 
         // If the regular identifier is the same, appearances += 1
         if (period_to_count.regular_plan_identifier() == period.regular_plan_identifier()) {
-            appearances++;
+            ++appearances;
         }
     }
 
@@ -2124,14 +2124,14 @@ str TimeTable::to_string() const {
     return Str_Utils::join("\n", period_strings);
 }
 
-std::optional<double> Cache::cache_file_last_changed(const std::optional<str>& file_path) const {
-    if (!file_path.has_value()) {
+std::optional<double> Cache::cache_file_last_changed() const {
+    if (!cache_file_path.has_value()) {
         return std::nullopt;
     }
     try {
         const auto now = std::chrono::system_clock::now();
 
-        const auto ftime = std::filesystem::last_write_time(file_path.value());
+        const auto ftime = std::filesystem::last_write_time(cache_file_path.value());
 
         // convert file time -> system_clock time_point
         const auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
@@ -2140,7 +2140,7 @@ std::optional<double> Cache::cache_file_last_changed(const std::optional<str>& f
         );
 
         return std::chrono::duration<double>(now - sctp).count();
-    } catch (std::exception& e) {
+    } catch (const std::exception&) {
         return std::nullopt;
     }
 }
@@ -2180,7 +2180,7 @@ void Cache::read_cache_from_file() {
         return;
     }
 
-    nlohmann::json j;
+    json j;
     in >> j;
 
     cache = j.get<decltype(cache)>();
@@ -2197,7 +2197,7 @@ void Cache::write_cache_to_file() const {
         return;
     }
 
-    nlohmann::json j(cache);
+    json j(cache);
 
     out << j.dump(4);
 }
@@ -2213,13 +2213,13 @@ Session::Session(
     str school,
     str client
 )
-    : username(std::move(username)),
+    : session_name(std::move(session_name)),
+      use_cache(use_cache),
+      logger(logger.value_or(Logger{})),
+      username(std::move(username)),
       password(std::move(password)),
       school(std::move(school)),
       client(std::move(client)),
-      session_name(std::move(session_name)),
-      use_cache(use_cache),
-      logger(logger.value_or(Logger{})),
       cache(std::move(cache_file))
 {
     if (!server.starts_with("http")) {
@@ -2361,11 +2361,11 @@ int Session::format_date(const date& d) {
     return stoi(Date_Utils::date_to_str(d, "%Y%m%d"));
 }
 
-date Session::parse_date(int d) {
+date Session::parse_date(const int d) {
     return Date_Utils::str_to_date(std::to_string(d), "%Y%m%d");
 }
 
-day_time Session::parse_time(int t) {
+day_time Session::parse_time(const int t) {
     return Date_Utils::str_to_time(std::to_string(t));
 }
 
@@ -2383,7 +2383,7 @@ std::map<str, str> Session::create_date_param(const date start, const date end, 
 
 void Session::log_in(uuid unique_id) {
     if (active_session_uuids.empty()) {
-        json params = {
+        const json& params = {
             {"user", username},
                 {"password", password},
                 {"client", client}
@@ -2436,12 +2436,12 @@ void Session::log_in(uuid unique_id) {
     active_session_uuids.insert(unique_id);
 }
 
-void Session::log_out(const uuid unique_id) {
+void Session::log_out(const uuid& unique_id) {
     active_session_uuids.erase(unique_id);
     if (active_session_uuids.empty() && jsessionid.has_value()) {
         try {
             rpc_request("logout", {});
-        } catch (std::exception& e) {}
+        } catch (const std::exception&) {}
         jsessionid.reset();
 
         logger.log_info(std::format("Logged out ({})!", session_name));
@@ -2456,28 +2456,88 @@ std::vector<Class> Session::all_klassen() {
     return all_kl;
 }
 
-std::vector<Room> Session::all_rooms() const {
-
+std::vector<Room> Session::all_rooms() {
+    std::vector<Room> all_ro;
+    for (const auto& r : rpc_request("getRooms", {})) {
+        all_ro.emplace_back(r.value("name", ""), r.value("longName", ""), r.value("id", 0));
+    }
+    return all_ro;
 }
 
-std::vector<Subject> Session::all_subjects() const {
-
+std::vector<Subject> Session::all_subjects() {
+    std::vector<Subject> all_su;
+    for (const auto& s : rpc_request("getSubjects", {})) {
+        all_su.emplace_back(s.value("name", ""), s.value("longName", ""), s.value("id", 0));
+    }
+    return all_su;
 }
 
-std::vector<Department> Session::all_departments() const {
-
+std::vector<Department> Session::all_departments() {
+    std::vector<Department> all_de;
+    for (const auto& d : rpc_request("getDepartments", {})) {
+        all_de.emplace_back(d.value("name", ""), d.value("longName", ""), d.value("id", 0));
+    }
+    return all_de;
 }
 
-std::vector<Holiday> Session::all_holidays() const {
+std::vector<Holiday> Session::all_holidays() {
+    std::vector<Holiday> all_ho;
 
+    using FieldValue = std::variant<str, int>;
+    using RawObj = std::unordered_map<str, FieldValue>;
+
+    for (const auto& h : rpc_request("getHolidays", {})) {
+        all_ho.emplace_back(RawObj{
+            {"name", FieldValue{h.value("name", "")}},
+            {"longName", FieldValue{h.value("longName", "")}},
+            {"id", FieldValue{h.value("id", 0)}},
+            {"startDate", FieldValue{h.value("startDate", 0)}},
+            {"endDate", FieldValue{h.value("startDate", 0)}}
+        });
+    }
+
+    return all_ho;
 }
 
-std::vector<SchoolYear> Session::all_schoolyears() const {
+std::vector<SchoolYear> Session::all_schoolyears() {
+    std::vector<SchoolYear> all_sy;
 
+    using FieldValue = std::variant<str, int>;
+    using RawObj = std::unordered_map<str, FieldValue>;
+
+    for (const auto& s : rpc_request("getSchoolyears", {})) {
+        all_sy.emplace_back(RawObj{
+            {"name", FieldValue{s.value("name", "")}},
+            {"longName", FieldValue{s.value("longName", "")}},
+            {"id", FieldValue{s.value("id", 0)}},
+            {"startDate", FieldValue{s.value("startDate", 0)}},
+            {"endDate", FieldValue{s.value("startDate", 0)}}
+        });
+    }
+
+    return all_sy;
 }
 
-SchoolYear Session::return_current_year() const {
+SchoolYear Session::return_current_year() {
+  const std::vector<SchoolYear> years = all_schoolyears();
+    if (years.empty()) {
+        throw std::runtime_error("No school years found");
+    }
 
+    // TODO: This doesn't even make sense in the Python equivalent.
+    // id field doesn't exist
+    // Not in C++, nor in Python.
+    /*
+    const auto it = std::max_element(
+        years.begin(),
+        years.end(),
+        [](const SchoolYear& a, const SchoolYear& b) {
+            return a.id < b.id;
+        }
+    );
+    */
+
+    // return *it;
 }
 
 std::optional<Class> Session::get_klasse_by_name(const str& name) {
@@ -2489,22 +2549,35 @@ std::optional<Class> Session::get_klasse_by_name(const str& name) {
     return std::nullopt;
 }
 
-std::optional<Room> Session::get_room_by_name(const str& name) const {
-
+std::optional<Room> Session::get_room_by_name(const str& name) {
+    for (const auto& r : all_rooms()) {
+        if (r.name == name) {
+            return r;
+        }
+    }
+    return std::nullopt;
 }
 
-std::optional<Teacher> Session::get_teacher_by_name(const str& name) const {
-
+std::optional<Teacher> Session::get_teacher_by_name(const str& name) {
+    try {
+        return Teacher::from_teacher_name(name);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
 }
 
-std::optional<Teacher> Session::get_teacher_by_long_name(const str& name) const {
-
+std::optional<Teacher> Session::get_teacher_by_long_name(const str& name) {
+    try {
+        return Teacher::from_teacher_long_name(name);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
 }
 
 TimeTable Session::timetable_extended(
     const std::variant<Class, Room, Teacher>& element,
-    date start,
-    date end
+    const date& start,
+    const date& end
 ) {
     std::map<str, int> element_type_table = {{"klasse", 1}, {"teacher", 2}, {"subject", 3}, {"room", 4}, {"student", 5}};
     int element_type;
@@ -2537,7 +2610,7 @@ TimeTable Session::timetable_extended(
 
     try {
         raw_result = rpc_request("getTimetable", {{"options", options}});
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         std::cout << "Error in getTimetable" << std::endl;
         std::cout << e.what();
         return TimeTable({});
@@ -2645,9 +2718,486 @@ TimeTable Session::timetable_extended(
                 raw_p.value("type", ""),
                 raw_p.value("id", 0)
             );
-        } catch (std::exception&) {
-            continue;
+        } catch (const std::exception&) {
         }
     }
+
     return TimeTable(periods);
+}
+
+json Session::teachers() {
+    return rpc_request("getTeachers", {});
+}
+
+json Session::statusdata() {
+    return rpc_request("getStatusData", {});
+}
+
+int Session::last_import_time() {
+    return rpc_request("getLatestImportTime", {});
+}
+
+json Session::substitutions(const date& start, const date& end, const int department_id) {
+    const json params = create_date_param(start, end, {{"departmentId", department_id}});
+    return rpc_request("getSubstitutions", params);
+}
+
+[[nodiscard]] std::vector<str> Session::timegrid_units() {
+    json raw_json = rpc_request("getTimegridUnits", {});
+
+    auto get_optional_int = [](const json& obj, const char* key) -> std::optional<int> {
+        const auto it = obj.find(key);
+
+        if (it == obj.end() || it->is_null()) {
+            return std::nullopt;
+        }
+
+        return it->get<int>();
+    };
+
+    auto convert_time = [](const std::optional<int>& value) -> str {
+        if (!value.has_value()) {
+            return "";
+        }
+
+        const day_time& datetime_obj = Date_Utils::str_to_daytime(
+            std::to_string(*value),
+            "%H%M"
+        );
+
+        return Date_Utils::daytime_to_str(
+            datetime_obj,
+            my_config.html_style_config.lesson_time_ranges_format
+        );
+    };
+
+    std::vector<str> lesson_time_ranges;
+
+    for (const auto& item : raw_json) {
+        const auto& time_units = item.at("timeUnits");
+
+        for (const auto& time_unit_list : time_units) {
+            for (const auto& time_unit : time_unit_list) {
+                auto start_time = get_optional_int(time_unit, "startTime");
+                auto end_time = get_optional_int(time_unit, "endTime");
+
+                lesson_time_ranges.push_back(
+                    std::format(
+                        "{} - {}",
+                        convert_time(start_time),
+                        convert_time(end_time)
+                    )
+                );
+            }
+        }
+    }
+
+    return lesson_time_ranges;
+}
+
+json Session::students() {
+    return rpc_request("getStudents", {});
+}
+
+json Session::exam_types() {
+    return rpc_request("getExamTypes", {});
+}
+
+json Session::exams(const date& start, const date& end, const int exam_type_id) {
+    const json params = create_date_param(start, end, {{"examTypeId", exam_type_id}});
+    return rpc_request("getExams", params);
+}
+
+json Session::timetable_with_absences(const date& start, const date& end) {
+    const json params = {{"options", create_date_param(start, end, {})}};
+    return rpc_request("getTimetableWithAbsences", params);
+}
+
+json Session::class_reg_events(const date& start, const date& end) {
+    const json params = create_date_param(start, end, {});
+    return rpc_request("getClassregEvents", params);
+}
+
+json Session::class_reg_event_for_id(const date& start, const date& end, const json& type_and_id) {
+    std::map<str, int> element_type_table = {{"klasse", 1}, {"teacher", 2}, {"subject", 3}, {"room", 4}, {"student", 5}};
+    const auto it = type_and_id.begin();
+
+    const str& element_type = it.key();
+    const int element_id = it.value().get<int>();
+
+    const json& params = create_date_param(start, end, {{"id", element_id}, {"type", element_type_table[element_type]}});
+    return rpc_request("getClassregEvents", params);
+}
+
+json Session::class_reg_categories() {
+    return rpc_request("getClassregCategories", {});
+}
+
+json Session::class_reg_category_groups() {
+    return rpc_request("getClassregCategoryGroups", {});
+}
+
+[[nodiscard]] TimeTable Session::my_timetable(const date& start, const date& end) {
+    // TODO: IMPLEMENT HERE
+    if (!person_id.has_value() || ! person_type.has_value()) {
+        throw std::runtime_error("Person ID or Type not available. Are you logged in?");
+    }
+    json options = {
+        {"startDate", format_date(start)},
+        {"endDate", format_date(end)},
+        {"element", {{"id", person_id}, {"type", person_type}}},
+        {"showBooking", true},
+        {"showInfo", true},
+        {"showSubstText", true},
+        {"showLsText", true},
+        {"showLsNumber", true},
+        {"showStudentgroup", true}
+    };
+
+    json raw_result;
+
+    try {
+        raw_result = rpc_request("getTimetable", {{"options", options}});
+    } catch (const std::exception& e) {
+        std::cout << "Error in getTimetable" << std::endl;
+        std::cout << e.what();
+        return TimeTable({});
+    }
+
+    std::map<int, json> all_su = {};
+    std::map<int, json> all_kl = {};
+    std::map<int, json> all_ro = {};
+
+    for (const auto& s : rpc_request("getSubjects", {})) {
+        all_su[s["id"]] = s;
+    }
+
+    for (const auto& k : rpc_request("getKlassen", {})) {
+        all_kl[k["id"]] = k;
+    }
+
+    for (const auto& r : rpc_request("getRooms", {})) {
+        all_ro[r["id"]] = r;
+    }
+
+    std::vector<Period> periods;
+
+    for (const auto& raw_p : raw_result) {
+        try {
+            datetime start_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["startTime"]));
+            datetime end_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["endTime"]));
+
+            std::vector<Subject> subjects;
+            std::vector<Class> klassen;
+            std::vector<Room> rooms;
+            std::vector<Room> original_rooms;
+            std::vector<Teacher> teachers;
+            std::vector<Teacher> original_teachers;
+
+            for (const auto& s : raw_p["su"]) {
+                auto master_su = all_su.contains(s["id"])
+                    ? all_su.at(s["id"])
+                    : json{};
+
+                subjects.emplace_back(master_su["name"], master_su["longName"], s["id"]);
+            }
+
+            for (const auto& k : raw_p["kl"]) {
+                auto master_kl = all_kl.contains(k["id"])
+                    ? all_kl.at(k["id"])
+                    : json{};
+
+                klassen.emplace_back(master_kl["name"], master_kl["longName"], k["id"]);
+            }
+
+            for (const auto& r : raw_p["ro"]) {
+                int rid = 0;
+                if (r.contains("id")) {
+                    rid = r["id"];
+                }
+
+                auto master_ro = all_ro.contains(rid)
+                    ? all_ro.at(rid)
+                    : json{};
+
+                rooms.emplace_back(master_ro["name"], master_ro["longName"], rid);
+            }
+
+            for (const auto& r : raw_p["ro"]) {
+                if (!r.contains("orgid")) {
+                    continue;
+                }
+                int org_id = r["orgid"];
+
+                auto master_ro = all_ro.contains(org_id)
+                    ? all_ro.at(org_id)
+                    : json{};
+
+                original_rooms.emplace_back(master_ro["name"], master_ro["longName"], org_id);
+            }
+
+            for (const auto& t : raw_p["te"]) {
+                if (t.contains("id")) {
+                    teachers.emplace_back(Teacher::from_teacher_id(t["id"]));
+                }
+                if (t.contains("orgid")) {
+                    teachers.emplace_back(Teacher::from_teacher_id(t["orgid"]));
+                }
+            }
+
+            periods.emplace_back(
+                raw_p.value("code", ""),
+                start_dt,
+                end_dt,
+                subjects,
+                klassen,
+                rooms,
+                original_rooms,
+                teachers,
+                original_teachers,
+                raw_p.value("sg", ""),
+                raw_p.value("activityType", ""),
+                raw_p.value("bkRemark", ""),
+                raw_p.value("bkText", ""),
+                raw_p.value("flags", ""),
+                raw_p.value("lsnumber", 0),
+                raw_p.value("lstext", ""),
+                raw_p.value("substText", ""),
+                raw_p.value("type", ""),
+                raw_p.value("id", 0)
+            );
+        } catch (const std::exception&) {
+        }
+    }
+
+    return TimeTable(periods);
+}
+
+json Session::_search(const str& surname, const str& fore_name, const int dob, const int what) {
+    const json& params = {{"sn", surname}, {"fn", fore_name}, {"dob", dob}, {"type", what}};
+    return rpc_request("getPersonId", params);
+}
+
+std::map<str, std::variant<str, int, json>> Session::get_student(const str& surname, const str& fore_name, const int dob) {
+    json id_val = _search(surname, fore_name, dob, 5);
+    if (id_val.empty()) {
+        throw std::runtime_error("Student not found");
+    }
+
+    using FieldValue = std::variant<str, int, json>;
+    using FieldMap = std::map<str, FieldValue>;
+
+    return FieldMap{
+        {"id", FieldValue{id_val}},
+        {"name", FieldValue{surname}},
+        {"longName", FieldValue{surname}},
+        {"foreName", FieldValue{fore_name}}
+    };
+}
+
+std::map<str, std::variant<str, int, json>> Session::get_teacher_from_search(const str& surname, const str& fore_name, const int dob) {
+    json id_val = _search(surname, fore_name, dob, 2);
+    if (id_val.empty()) {
+        throw std::runtime_error("Teacher not found");
+    }
+
+    using FieldValue = std::variant<str, int, json>;
+    using FieldMap = std::map<str, FieldValue>;
+
+    return FieldMap{
+        {"id", FieldValue{id_val}},
+        {"name", FieldValue{surname}},
+        {"longName", FieldValue{surname}},
+        {"foreName", FieldValue{fore_name}},
+        {"title", FieldValue{str{}}}
+    };
+}
+
+void Session::multithread_worker(
+    std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>& raw_result,
+    std::mutex& raw_result_lock,
+    const Class& klasse,
+    str raw_date,
+    date start,
+    date end,
+    str function_name,
+    uuid call_id,
+    int max_attempts
+) {
+    max_attempts = max_attempts > 1 ? max_attempts : 1;
+
+    std::optional<std::map<str, std::map<str, TimeTable>>> entry = std::nullopt;
+    std::optional<std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>> error_entry = std::nullopt;
+
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        try {
+            log_in(call_id);
+            TimeTable table = timetable_extended(klasse, start, end);
+            entry = {{klasse.name, {{"table", table}}}};
+            error_entry = std::nullopt;
+        } catch (const std::exception& e) {
+            my_logger.log_warning(std::format("Attempt {} failed in {}: {}", attempt + 1, function_name, e.what()));
+
+            if (attempt == max_attempts - 1) {
+                entry = std::nullopt;
+                error_entry = {
+                    {"error", std::format("{}: []", my_config.language_config.unexpected_error, my_logger.current_time())},
+                    {"exception", e}
+                };
+            } else {
+                std::this_thread::sleep_for(
+                    std::chrono::duration<double>(0.5 * (attempt + 1))
+                );
+                continue;
+            }
+        }
+    }
+
+    {
+        // Enter CR
+        std::lock_guard<std::mutex> lock(raw_result_lock);
+
+        if (entry.has_value()) {
+            for (const auto& [key, value] : *entry) {
+                raw_result[key] = value;
+            }
+        } else if (error_entry.has_value()) {
+            for (const auto& [key, value] : *error_entry) {
+                raw_result[key] = value;
+            }
+        }
+
+        // Leave CR
+    }
+}
+
+std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> Session::multithreading_result(
+    float sleep_time,
+    int max_threads,
+    str raw_date,
+    date start,
+    date end,
+    str function_name,
+    bool logging,
+    uuid call_id,
+    bool log_out_afterwards,
+    int max_attempts
+) {
+    std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> raw_result;
+    std::mutex raw_result_lock;
+    std::vector<Class> klassen_list = all_klassen();
+    std::vector<Class> viable_klassen;
+    std::vector<std::thread> threads;
+
+    for (const auto& klasse : klassen_list) {
+        if (klasse.name.length() == 2 && !klasse.name.starts_with("M")) {
+            viable_klassen.push_back(klasse);
+        }
+    }
+
+    if (logging) {
+        size_t current_batch_count = 0;
+        size_t total_batch_count = (viable_klassen.size() + max_threads - 1) / max_threads;
+
+        for (size_t i = 0; i < viable_klassen.size(); i+=max_threads) {
+            // TODO: fix-up needed with += max_threads or not? probs this is fine.
+            size_t batch_end = std::min(i + max_threads, viable_klassen.size());
+
+            for (size_t j= i; j < batch_end; j++) {
+                const Class& klasse = viable_klassen[j];
+
+                threads.push_back(std::thread(
+                    &Session::multithread_worker,
+                    this,
+                    std::ref(raw_result),
+                    std::ref(raw_result_lock),
+                    klasse,
+                    raw_date,
+                    start,
+                    end,
+                    function_name,
+                    call_id,
+                    max_attempts
+                ));
+            }
+
+            ++current_batch_count;
+
+            for (size_t j= i; j < batch_end; j++) {
+                auto& thread = threads.at(j);
+                if (thread.joinable()) {
+                    thread.join();
+                }
+            }
+
+            const str percent = std::format("{:.1f}", 100.0 * static_cast<double>(current_batch_count) / total_batch_count);
+            const int filled_length = 50 * current_batch_count / total_batch_count;
+            str bar;
+            bar.reserve(filled_length * 3); // █ is 3 bytes in UTF-8
+            bar.reserve(50 - filled_length); // - is 1 byte in UTF-8
+            for (int j = 0; j < filled_length; ++j) {
+                bar += "█";
+            }
+            for (int j = 0; j < 50 - filled_length; ++j) {
+                bar += "-";
+            }
+
+            std::cout << "\rProgress |" << bar << "| "
+                << percent << "% complete (Batch #"
+                << current_batch_count << " / "
+                << total_batch_count << ")" << std::flush;
+
+            if (current_batch_count == total_batch_count) {
+                std::cout << std::endl;
+            }
+
+            if (i + max_threads < threads.size()) {
+                std::this_thread::sleep_for(
+                    std::chrono::duration<double>(sleep_time)
+                );
+            }
+        }
+
+        if (log_out_afterwards) {
+            log_out(call_id);
+        }
+
+        return raw_result;
+    }
+
+    for (int i = 0; i < viable_klassen.size(); ++i) {
+        if ((i + 1) % max_threads == 0) {
+            std::this_thread::sleep_for(
+                std::chrono::duration<double>(sleep_time)
+            );
+        }
+
+        const Class& klasse = viable_klassen[i];
+
+        threads.push_back(std::thread(
+            &Session::multithread_worker,
+            this,
+            std::ref(raw_result),
+            std::ref(raw_result_lock),
+            klasse,
+            raw_date,
+            start,
+            end,
+            function_name,
+            call_id,
+            max_attempts
+        ));
+    }
+
+    for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    if (log_out_afterwards) {
+        log_out(call_id);
+    }
+
+    return raw_result;
 }
