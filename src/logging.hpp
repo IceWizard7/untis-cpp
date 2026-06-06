@@ -25,12 +25,13 @@ class Logger {
     std::map<LogLevels, std::vector<str>> log_messages;
     std::vector<LogLevels> only_log_levels;
 
-    static str current_time();
     static str to_string_any(const str& msg);
 
 public:
     Logger();
     ~Logger();
+
+    static str current_time();
 
     void log_debug(const str& message);
     void log_info(const str& message);
