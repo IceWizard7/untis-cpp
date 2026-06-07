@@ -718,7 +718,7 @@ void Session::multithread_worker(
 
         if (entry.has_value()) {
             for (const auto &[key, value]: *entry) {
-                raw_result[key] = value;
+                raw_result.at(key) = value;
             }
         } else if (error_entry.has_value()) {
             error_result = *error_entry;
