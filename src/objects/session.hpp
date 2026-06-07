@@ -54,13 +54,13 @@ public:
 
     [[nodiscard]] SchoolYear return_current_year();
 
-    [[nodiscard]] std::optional<Class> get_klasse_by_name(const str &name);
+    [[nodiscard]] Class get_klasse_by_name(const str &name);
 
-    [[nodiscard]] std::optional<Room> get_room_by_name(const str &name);
+    [[nodiscard]] Room get_room_by_name(const str &name);
 
-    static std::optional<Teacher> get_teacher_by_name(const str &name);
+    static Teacher get_teacher_by_name(const str &name);
 
-    static std::optional<Teacher> get_teacher_by_long_name(const str &name);
+    static Teacher get_teacher_by_long_name(const str &name);
 
     TimeTable timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start, const date &end);
 

@@ -270,37 +270,37 @@ SchoolYear Session::return_current_year() {
     throw std::runtime_error("Session::return_current_year is not implemented yet.");
 }
 
-std::optional<Class> Session::get_klasse_by_name(const str &name) {
+Class Session::get_klasse_by_name(const str &name) {
     for (const auto &k: all_klassen()) {
         if (k.name == name) {
             return k;
         }
     }
-    return std::nullopt;
+    throw std::runtime_error(std::format("Class {} was not found.", name));
 }
 
-std::optional<Room> Session::get_room_by_name(const str &name) {
+Room Session::get_room_by_name(const str &name) {
     for (const auto &r: all_rooms()) {
         if (r.name == name) {
             return r;
         }
     }
-    return std::nullopt;
+    throw std::runtime_error(std::format("Room {} was not found.", name));
 }
 
-std::optional<Teacher> Session::get_teacher_by_name(const str &name) {
+Teacher Session::get_teacher_by_name(const str &name) {
     try {
         return Teacher::from_teacher_name(name);
     } catch (const std::exception &) {
-        return std::nullopt;
+        throw std::runtime_error(std::format("Teacher (with name) {} was not found.", name));
     }
 }
 
-std::optional<Teacher> Session::get_teacher_by_long_name(const str &name) {
+Teacher Session::get_teacher_by_long_name(const str &name) {
     try {
         return Teacher::from_teacher_long_name(name);
     } catch (const std::exception &) {
-        return std::nullopt;
+        throw std::runtime_error(std::format("Teacher (with long name) {} was not found.", name));
     }
 }
 
