@@ -267,6 +267,7 @@ SchoolYear Session::return_current_year() {
     */
 
     // return *it;
+    throw std::runtime_error("Session::return_current_year is not implemented yet.");
 }
 
 std::optional<Class> Session::get_klasse_by_name(const str &name) {
