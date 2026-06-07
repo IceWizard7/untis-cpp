@@ -1,5 +1,6 @@
 #include "time_table.hpp"
 
+#include <bitset>
 #include <iostream>
 
 #include "config.hpp"
