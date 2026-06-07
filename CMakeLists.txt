@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_subdirectory(external/IXWebSocket)
 
 set(CPR_CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
+set(USE_NGHTTP2 OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/cpr)
 add_subdirectory(external/json)
 
@@ -17,8 +18,25 @@ add_subdirectory(external/json)
 add_library(Untis STATIC
         src/config.cpp
         src/logging.cpp
-        src/objects.cpp
         src/render.cpp
+
+        src/utils/date_utils.cpp
+
+        src/objects/base_date_entity/base_date_entity.cpp
+        src/objects/base_date_entity/holiday.cpp
+        src/objects/base_date_entity/school_year.cpp
+
+        src/objects/base_entity/base_entity.cpp
+        src/objects/base_entity/class.cpp
+        src/objects/base_entity/department.cpp
+        src/objects/base_entity/room.cpp
+        src/objects/base_entity/subject.cpp
+        src/objects/base_entity/teacher.cpp
+
+        src/objects/cache.cpp
+        src/objects/period.cpp
+        src/objects/session.cpp
+        src/objects/time_table.cpp
 )
 
 # Public headers for consumers

@@ -3,85 +3,66 @@
 #include "render.hpp"
 
 #include <map>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
-using str = std::string;
+#include "utils/all.hpp"
 
-class TimeTableMappingConfig {
-public:
-    std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str>>> personal_timetable_entries;
-    std::map<int, std::tuple<str, str, std::unordered_set<str>>> teacher_mapping;
-    std::map<std::tuple<str, str, int>, std::tuple<int, int, int>> subject_to_color;
-    std::tuple<int, int, int> default_subject_color;
+namespace Config::TimeTableMappingConfig {
+    extern std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str>>> personal_timetable_entries;
+    extern std::map<int, std::tuple<str, str, std::unordered_set<str>>> teacher_mapping;
+    extern std::map<std::tuple<str, str, int>, std::tuple<int, int, int>> subject_to_color;
+    extern std::tuple<int, int, int> default_subject_color;
 
-    TimeTableMappingConfig();
-    ~TimeTableMappingConfig();
-};
+}; // namespace Config::TimeTableMappingConfig
 
-class LanguageConfig {
-public:
-    std::vector<std::pair<str, str>> weekday_name_mapping;
-    str tomorrow;
-    str today;
-    str yesterday;
-    str last_week;
-    str next_week;
-    str two_week_abbreviation;
-    str two_week_abbreviation_legend;
-    str class_timetable;
-    str room_timetable;
-    str teacher_timetable;
-    str personal_timetable;
-    str unknown_element_extended_text;
-    str some_hour;
-    str is_cancelled;
-    str are_cancelled;
-    str is_irregular;
-    str are_irregular;
-    str instead;
-    str multiple_lessons_cancelled;
-    str multiple_lessons_irregular;
-    str back;
-    str time;
-    str unexpected_error;
+namespace Config::LanguageConfig {
+    extern std::vector<std::pair<str, str>> weekday_name_mapping;
+    extern str tomorrow;
+    extern str today;
+    extern str yesterday;
+    extern str last_week;
+    extern str next_week;
+    extern str two_week_abbreviation;
+    extern str two_week_abbreviation_legend;
+    extern str class_timetable;
+    extern str room_timetable;
+    extern str teacher_timetable;
+    extern str personal_timetable;
+    extern str unknown_element_extended_text;
+    extern str some_hour;
+    extern str is_cancelled;
+    extern str are_cancelled;
+    extern str is_irregular;
+    extern str are_irregular;
+    extern str instead;
+    extern str multiple_lessons_cancelled;
+    extern str multiple_lessons_irregular;
+    extern str back;
+    extern str time;
+    extern str unexpected_error;
 
-    void set_internal_lang(const str& lang);
-
-    LanguageConfig();
-    ~LanguageConfig();
-};
+    void set_internal_lang(const str &lang);
+}; // namespace Config::LanguageConfig
 
 
-class HTMLStyleConfig {
-public:
-    std::tuple<int, int, int> table_header_base_rgb;
-    std::tuple<int, int, int> today_personal_rgb_value;
-    str timetable_html_header;
-    str timetable_html_footer;
-    str timetable_html_footer_two_week;
-    str personal_timetable_html_header;
-    str personal_timetable_html_footer;
-    str unknown_element_symbol;
-    str lesson_time_ranges_format;
-    std::vector<str> lesson_time_ranges;
+namespace Config::HTMLStyleConfig {
+    extern std::tuple<int, int, int> table_header_base_rgb;
+    extern std::tuple<int, int, int> today_personal_rgb_value;
+    extern str timetable_html_header;
+    extern str timetable_html_footer;
+    extern str timetable_html_footer_two_week;
+    extern str personal_timetable_html_header;
+    extern str personal_timetable_html_footer;
+    extern str unknown_element_symbol;
+    extern str lesson_time_ranges_format;
+    extern std::vector<str> lesson_time_ranges;
 
-    void set_internal_lang(const str& lang, const LanguageConfig& language_config);
+    void set_internal_lang(const str &lang);
+}; // namespace Config::HTMLStyleConfig
 
-    HTMLStyleConfig();
-    ~HTMLStyleConfig();
-};
+namespace Config {
+    extern Renderer renderer;
 
-class Config {
-public:
-    TimeTableMappingConfig timetable_mapping_config;
-    LanguageConfig language_config;
-    HTMLStyleConfig html_style_config;
-    Renderer renderer;
-
-    Config();
-    ~Config();
-
-    void set_lang(const str& lang);
-};
+    void set_lang(const str &lang);
+}; // namespace Config
