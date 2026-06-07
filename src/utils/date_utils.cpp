@@ -78,6 +78,29 @@ namespace Date_Utils {
         return std::chrono::hours{tm.tm_hour} + std::chrono::minutes{tm.tm_min} + std::chrono::seconds{tm.tm_sec};
     }
 
+    datetime str_to_datetime(const str &s, const str &format) {
+        std::tm tm{};
+        std::istringstream ss(s);
+
+        ss >> std::get_time(&tm, format.c_str());
+
+        if (ss.fail()) {
+            throw std::runtime_error("Datetime parse failed");
+        }
+
+        date d = std::chrono::year{tm.tm_year + 1900} / std::chrono::month{static_cast<unsigned>(tm.tm_mon + 1)} /
+                 std::chrono::day{static_cast<unsigned>(tm.tm_mday)};
+
+        if (!d.ok()) {
+            throw std::runtime_error("Invalid datetime");
+        }
+
+        const day_time t =
+                std::chrono::hours{tm.tm_hour} + std::chrono::minutes{tm.tm_min} + std::chrono::seconds{tm.tm_sec};
+
+        return std::chrono::sys_days{d} + t;
+    }
+
     day_time str_to_time(str t) {
         if (t.length() < 4) {
             t = str(4 - t.length(), '0') + t;

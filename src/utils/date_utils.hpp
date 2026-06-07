@@ -15,6 +15,8 @@ namespace Date_Utils {
 
     day_time str_to_daytime(const str &s, const str &format);
 
+    datetime str_to_datetime(const str &s, const str &format);
+
     day_time str_to_time(str t);
 
     datetime combine(const date &d, const day_time &t);
