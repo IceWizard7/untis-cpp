@@ -6,7 +6,9 @@
 #include "config.hpp"
 #include "utils/all.hpp"
 
-TimeTable::TimeTable(std::vector<Period> periods_) : periods(std::move(periods_)) {}
+TimeTable::TimeTable(std::vector<Period> periods_) :
+    periods(std::move(periods_)) {
+}
 
 TimeTable::~TimeTable() = default;
 
@@ -26,12 +28,16 @@ TimeTable::~TimeTable() = default;
 
 /// Keep any period that stores that subject in the period (modify TimeTable in place)
 void TimeTable::filter_hours_by_subject(const Subject &subject) {
-    std::erase_if(periods, [&](const Period &p) { return !Vector_Utils::contains_value(p.subjects, subject); });
+    std::erase_if(periods, [&](const Period &p) {
+        return !Vector_Utils::contains_value(p.subjects, subject);
+    });
 }
 
 /// Keep any period that stores that class in the period (modify TimeTable in place)
 void TimeTable::filter_hours_by_class(const Class &klasse) {
-    std::erase_if(periods, [&](const Period &p) { return !Vector_Utils::contains_value(p.klassen, klasse); });
+    std::erase_if(periods, [&](const Period &p) {
+        return !Vector_Utils::contains_value(p.klassen, klasse);
+    });
 }
 
 /// Keep any period that stores that room in the period (modify TimeTable in place)
@@ -75,10 +81,14 @@ void TimeTable::filter_hours_by_personal(const str &name) {
             teacher_names.push_back(t.name);
 
         const bool teacher_match = std::ranges::any_of(
-                teacher_names, [&](const str &t_name) { return personal_teachers.contains(t_name); });
+                teacher_names, [&](const str &t_name) {
+                    return personal_teachers.contains(t_name);
+                });
 
         const bool subject_match =
-                std::ranges::any_of(p.subjects, [&](const Subject &s) { return personal_subjects.contains(s.name); });
+                std::ranges::any_of(p.subjects, [&](const Subject &s) {
+                    return personal_subjects.contains(s.name);
+                });
 
         return !(teacher_match && subject_match);
     });
@@ -117,10 +127,12 @@ str TimeTable::format_value(const float value, const bool percent, const bool va
 }
 
 [[nodiscard]] std::tuple<int, int, int, int>
-TimeTable::get_statistics(date start_date, date end_date, const std::variant<Class, Room, Teacher> &featuring_object,
-                          const std::vector<Class> &filtered_class_objects, bool filter_classes,
-                          const std::vector<Room> &filtered_room_objects, bool filter_rooms,
-                          const std::vector<Teacher> &filtered_teacher_objects, bool filter_teachers) const {
+TimeTable::get_statistics(
+        date start_date, date end_date, const std::variant<Class, Room, Teacher> &featuring_object,
+        const std::vector<Class> &filtered_class_objects, bool filter_classes,
+        const std::vector<Room> &filtered_room_objects, bool filter_rooms,
+        const std::vector<Teacher> &filtered_teacher_objects, bool filter_teachers
+        ) const {
     std::map<datetime, bool> raw_hours_taught;
     std::map<datetime, bool> raw_hours_missed;
     std::map<datetime, bool> raw_hours_extra;
@@ -233,9 +245,10 @@ TimeTable::get_statistics(date start_date, date end_date, const std::variant<Cla
         const std::vector<Class> &filtered_class_objects, bool filter_classes,
         const std::vector<Room> &filtered_room_objects, bool filter_rooms,
         const std::vector<Teacher> &filtered_teacher_objects, bool filter_teachers, bool filter_unused_objects) const {
-    auto [hours_special_cases, hours_taught, hours_missed, hours_extra] =
-            get_statistics(start_date, end_date, featuring_object, filtered_class_objects, filter_classes,
-                           filtered_room_objects, filter_rooms, filtered_teacher_objects, filter_teachers);
+    auto [hours_special_cases, hours_taught, hours_missed, hours_extra] = get_statistics(
+            start_date, end_date, featuring_object, filtered_class_objects, filter_classes,
+            filtered_room_objects, filter_rooms, filtered_teacher_objects, filter_teachers
+            );
 
     int hours_regular = hours_taught + hours_missed;
 
@@ -247,7 +260,7 @@ TimeTable::get_statistics(date start_date, date end_date, const std::variant<Cla
         hours_taught_percent = format_value(
                 static_cast<float>(hours_taught) / static_cast<float>(hours_regular) * 100.0f, true, false);
         hours_taught_extra_percent = format_value(static_cast<float>(hours_taught + hours_extra) /
-                                                          static_cast<float>(hours_regular) * 100.0f,
+                                                  static_cast<float>(hours_regular) * 100.0f,
                                                   true, false);
         hours_extra_per_regular =
                 format_value(static_cast<float>(hours_extra) / static_cast<float>(hours_regular) * 100.0f, true, false);
@@ -262,39 +275,46 @@ TimeTable::get_statistics(date start_date, date end_date, const std::variant<Cla
     str taught_all_percent = "0,00%";
     if (total_periods > 0) {
         taught_all_percent = format_value(static_cast<float>(hours_taught + hours_extra) /
-                                                  static_cast<float>(total_periods) * 100.0f,
+                                          static_cast<float>(total_periods) * 100.0f,
                                           true, false);
     }
 
-    return {std::to_string(hours_taught),        std::to_string(hours_missed), std::to_string(hours_extra),
-            std::to_string(hours_special_cases), taught_all_percent,           hours_taught_percent,
-            hours_taught_extra_percent,          hours_extra_per_regular};
+    return {
+            std::to_string(hours_taught), std::to_string(hours_missed), std::to_string(hours_extra),
+            std::to_string(hours_special_cases), taught_all_percent, hours_taught_percent,
+            hours_taught_extra_percent, hours_extra_per_regular
+    };
 }
 
 std::tuple<str, str> TimeTable::get_table_name(const std::variant<Class, Room, Teacher> &featuring_object,
                                                const date start_date, const date end_date) {
     if (const Class *c_ptr = std::get_if<Class>(&featuring_object)) {
-        return std::make_tuple(Config::LanguageConfig::class_timetable + " " + c_ptr->name,
-                               "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
-                                       Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
+        return std::make_tuple(
+                Config::LanguageConfig::class_timetable + " " + c_ptr->name,
+                "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
+                Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
     }
     if (const Room *r_ptr = std::get_if<Room>(&featuring_object)) {
-        return std::make_tuple(Config::LanguageConfig::room_timetable + " " + r_ptr->name,
-                               "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
-                                       Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
+        return std::make_tuple(
+                Config::LanguageConfig::room_timetable + " " + r_ptr->name,
+                "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
+                Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
     }
     if (const Teacher *t_ptr = std::get_if<Teacher>(&featuring_object)) {
-        return std::make_tuple(Config::LanguageConfig::teacher_timetable + " " + t_ptr->name + " (" + t_ptr->long_name +
-                                       ")",
-                               "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
-                                       Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
+        return std::make_tuple(
+                Config::LanguageConfig::teacher_timetable + " " + t_ptr->name + " (" + t_ptr->long_name +
+                ")",
+                "(" + Date_Utils::date_to_str(start_date, "%d.%m.%Y") + " - " +
+                Date_Utils::date_to_str(end_date, "%d.%m.%Y") + ")");
     }
     return std::make_tuple("", "");
 }
 
-[[nodiscard]] std::vector<Period> TimeTable::unsorted_table() const { return periods; }
+[[nodiscard]] std::vector<Period> TimeTable::unsorted_table() const {
+    return periods;
+}
 
-[[nodiscard]] std::vector<std::pair<day_time, std::vector<std::pair<date, std::vector<Period>>>>>
+[[nodiscard]] std::vector<std::pair<day_time, std::vector<std::pair<date, std::vector<Period> > > > >
 TimeTable::to_table() const {
     if (periods.empty())
         return {};
@@ -309,7 +329,7 @@ TimeTable::to_table() const {
         date_times.insert(p.start);
     }
 
-    std::map<day_time, std::map<date, std::vector<Period>>> time_table;
+    std::map<day_time, std::map<date, std::vector<Period> > > time_table;
     for (const auto &t: times) {
         for (const auto &d: dates) {
             time_table[t][d] = {};
@@ -324,10 +344,10 @@ TimeTable::to_table() const {
         }
     }
 
-    std::vector<std::pair<day_time, std::vector<std::pair<date, std::vector<Period>>>>> result;
+    std::vector<std::pair<day_time, std::vector<std::pair<date, std::vector<Period> > > > > result;
 
     for (const auto &[t, date_map]: time_table) {
-        std::vector<std::pair<date, std::vector<Period>>> date_vec(date_map.begin(), date_map.end());
+        std::vector<std::pair<date, std::vector<Period> > > date_vec(date_map.begin(), date_map.end());
         result.emplace_back(t, std::move(date_vec));
     }
 
@@ -335,7 +355,7 @@ TimeTable::to_table() const {
 }
 
 [[nodiscard]] std::vector<str> TimeTable::to_class_cancelled_hours() const {
-    std::map<std::pair<datetime, datetime>, std::vector<std::vector<str>>> cancelled_hours_one_time;
+    std::map<std::pair<datetime, datetime>, std::vector<std::vector<str> > > cancelled_hours_one_time;
     for (const auto &[time, row]: to_table()) {
         for (const auto &cell: row | std::views::values) {
             for (const auto &p: cell) {
@@ -370,12 +390,14 @@ TimeTable::to_table() const {
                 auto [p_info, p_code] = std::make_pair(
                         std::format("{} ({}, {})", long_subject_name, room_name, teachers), p.raw_period_code);
 
-                str cancelled_info = std::format("{} ({}, {}) {}: {}", long_subject_name, room_name, teachers,
-                                                 Config::LanguageConfig::is_cancelled,
-                                                 Date_Utils::datetime_to_str(p.start, "%Y-%m-%d %H:%M:%S"));
-                str irregular_info = std::format("{} ({}, {}) -> {} ({}, {}): {}", long_subject_name,
-                                                 original_room_name, original_teachers, long_subject_name, room_name,
-                                                 teachers, Date_Utils::datetime_to_str(p.start, "%Y-%m-%d %H:%M:%S"));
+                str cancelled_info = std::format(
+                        "{} ({}, {}) {}: {}", long_subject_name, room_name, teachers,
+                        Config::LanguageConfig::is_cancelled,
+                        Date_Utils::datetime_to_str(p.start, "%Y-%m-%d %H:%M:%S"));
+                str irregular_info = std::format(
+                        "{} ({}, {}) -> {} ({}, {}): {}", long_subject_name,
+                        original_room_name, original_teachers, long_subject_name, room_name,
+                        teachers, Date_Utils::datetime_to_str(p.start, "%Y-%m-%d %H:%M:%S"));
 
                 auto add_info = [&](const str &info) {
                     const std::vector<str> entry = {p_info, p_code.value_or(""), info};
@@ -409,35 +431,42 @@ TimeTable::to_table() const {
         if (cancelled_hours_one_time[dates].size() == 1) {
             // 1 Hour / date
             if (lesson_1_code == "irregular") {
-                special_hours.push_back(std::format("{} {}: {}", lesson_1_string, Config::LanguageConfig::is_irregular,
-                                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
+                special_hours.push_back(
+                        std::format("{} {}: {}", lesson_1_string, Config::LanguageConfig::is_irregular,
+                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
             } else {
                 special_hours.push_back(lesson_1_special_string);
             }
         } else if (cancelled_hours_one_time[dates].size() == 2) {
             // 2 Hours / date
             if (lesson_1_code == "cancelled" && lesson_2_code == "irregular") {
-                special_hours.push_back(std::format("{} {}: {}: {}", Config::LanguageConfig::instead, lesson_1_string,
-                                                    lesson_2_string,
-                                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
+                special_hours.push_back(
+                        std::format("{} {}: {}: {}", Config::LanguageConfig::instead, lesson_1_string,
+                                    lesson_2_string,
+                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
             } else if (lesson_2_code == "cancelled" && lesson_1_code == "irregular") {
-                special_hours.push_back(std::format("{} {}: {}: {}", Config::LanguageConfig::instead, lesson_2_string,
-                                                    lesson_1_string,
-                                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
+                special_hours.push_back(
+                        std::format("{} {}: {}: {}", Config::LanguageConfig::instead, lesson_2_string,
+                                    lesson_1_string,
+                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
             } else if (lesson_1_code == "cancelled" && lesson_2_code == "cancelled") {
-                special_hours.push_back(std::format("{} & {} {}: {}", lesson_1_string, lesson_2_string,
-                                                    Config::LanguageConfig::are_cancelled,
-                                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
+                special_hours.push_back(
+                        std::format("{} & {} {}: {}", lesson_1_string, lesson_2_string,
+                                    Config::LanguageConfig::are_cancelled,
+                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
             } else {
-                special_hours.push_back(std::format("{} & {} {}: {}", lesson_1_string, lesson_2_string,
-                                                    Config::LanguageConfig::are_irregular,
-                                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
+                special_hours.push_back(
+                        std::format("{} & {} {}: {}", lesson_1_string, lesson_2_string,
+                                    Config::LanguageConfig::are_irregular,
+                                    Date_Utils::datetime_to_str(dates.first, "%Y-%m-%d %H:%M:%S")));
             }
         } else {
             // > 2 Hours / date
             bool all_cancelled =
                     std::ranges::all_of(cancelled_hours_one_time[dates],
-                                        [](const std::vector<str> &entry) { return entry[1] != "irregular"; });
+                                        [](const std::vector<str> &entry) {
+                                            return entry[1] != "irregular";
+                                        });
 
             if (all_cancelled) {
                 special_hours.push_back(std::format("{}: {}", Config::LanguageConfig::multiple_lessons_cancelled,
@@ -452,10 +481,10 @@ TimeTable::to_table() const {
     return special_hours;
 }
 
-[[nodiscard]] std::tuple<std::vector<str>, std::vector<str>, std::map<str, std::map<str, std::vector<Period>>>>
+[[nodiscard]] std::tuple<std::vector<str>, std::vector<str>, std::map<str, std::map<str, std::vector<Period> > > >
 TimeTable::html_setup(const int user_id, const bool website, const std::tuple<str, str> &table_name,
                       const std::optional<date> &start_date, const std::optional<date> &end_date) const {
-    std::map<str, std::map<str, std::vector<Period>>> final_hours;
+    std::map<str, std::map<str, std::vector<Period> > > final_hours;
 
     for (const auto &weekday: Config::LanguageConfig::weekday_name_mapping | std::views::keys) {
         if (weekday == "Saturday" || weekday == "Sunday") {
@@ -521,7 +550,7 @@ TimeTable::html_setup(const int user_id, const bool website, const std::tuple<st
 
     str water_mark_bits = std::bitset<64>(user_id).to_string();
     std::tuple<int, int, int> base_rgb_value = Config::HTMLStyleConfig::table_header_base_rgb;
-    std::vector<std::tuple<int, int, int>> water_mark_rgb_value;
+    std::vector<std::tuple<int, int, int> > water_mark_rgb_value;
 
     // Handle the first 5 full RGB triplets
     for (int num_header = 0; num_header < 5; ++num_header) {
@@ -538,23 +567,28 @@ TimeTable::html_setup(const int user_id, const bool website, const std::tuple<st
     std::vector<str> html;
 
     if (website && start_date.has_value() && end_date.has_value()) {
-        html = {Config::HTMLStyleConfig::timetable_html_header,
+        html = {
+                Config::HTMLStyleConfig::timetable_html_header,
                 "<p>",
                 std::format("<a href=\"?date=0\"><button>{}</button></a>", Config::LanguageConfig::back),
                 "<br>",
-                std::format("<a href=\"?date={}\"><button>{}</button></a>",
-                            Date_Utils::date_to_str(Date_Utils::add_weeks(start_date.value(), -1), "%d-%m-%Y"),
-                            Config::LanguageConfig::last_week),
+                std::format(
+                        "<a href=\"?date={}\"><button>{}</button></a>",
+                        Date_Utils::date_to_str(Date_Utils::add_weeks(start_date.value(), -1), "%d-%m-%Y"),
+                        Config::LanguageConfig::last_week),
                 std::format("{} {}", std::get<0>(table_name), std::get<1>(table_name)),
-                std::format("<a href=\"?date={}\"><button>{}</button></a>",
-                            Date_Utils::date_to_str(Date_Utils::add_weeks(start_date.value(), 1), "%d-%m-%Y"),
-                            Config::LanguageConfig::next_week),
+                std::format(
+                        "<a href=\"?date={}\"><button>{}</button></a>",
+                        Date_Utils::date_to_str(Date_Utils::add_weeks(start_date.value(), 1), "%d-%m-%Y"),
+                        Config::LanguageConfig::next_week),
                 "</p>",
                 R"(<table border="1" cellspacing="0" cellpadding="5">)",
-                std::format("<tr><th style=\"background-color: rgb({},{},{});\">{}</th>",
-                            std::get<0>(Config::HTMLStyleConfig::table_header_base_rgb),
-                            std::get<1>(Config::HTMLStyleConfig::table_header_base_rgb),
-                            std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)};
+                std::format(
+                        "<tr><th style=\"background-color: rgb({},{},{});\">{}</th>",
+                        std::get<0>(Config::HTMLStyleConfig::table_header_base_rgb),
+                        std::get<1>(Config::HTMLStyleConfig::table_header_base_rgb),
+                        std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)
+        };
 
         for (const auto &day: weekdays) {
             html.push_back(std::format("<th style=\"background-color: rgb({}, {}, {});\">{}</th>",
@@ -564,13 +598,15 @@ TimeTable::html_setup(const int user_id, const bool website, const std::tuple<st
         }
         html.emplace_back("</tr>");
     } else {
-        html = {Config::HTMLStyleConfig::timetable_html_header,
+        html = {
+                Config::HTMLStyleConfig::timetable_html_header,
                 std::format("<p>{} {}</p>", std::get<0>(table_name), std::get<1>(table_name)),
                 R"(<table border="1" cellspacing="0" cellpadding="5">)",
                 std::format("<tr><th style=\"background-color: rgb({}, {}, {});\">{}</th>",
                             std::get<0>(Config::HTMLStyleConfig::table_header_base_rgb),
                             std::get<1>(Config::HTMLStyleConfig::table_header_base_rgb),
-                            std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)};
+                            std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)
+        };
 
         for (int count = 0; count < weekdays.size(); ++count) {
             const auto &day = weekdays[count];
@@ -586,7 +622,7 @@ TimeTable::html_setup(const int user_id, const bool website, const std::tuple<st
 }
 
 bool TimeTable::html_line_too_long(
-        const std::vector<std::tuple<str, str, str, datetime, datetime>> &distinct_lessons_list_formatted) {
+        const std::vector<std::tuple<str, str, str, datetime, datetime> > &distinct_lessons_list_formatted) {
     unsigned long max_html_chars_per_row = 10;
 
     std::vector<unsigned long> chars_rows = {0, 0, 0};
@@ -650,7 +686,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                 continue;
             }
 
-            std::vector<std::tuple<str, str, str, datetime, datetime>> distinct_lessons_list_formatted;
+            std::vector<std::tuple<str, str, str, datetime, datetime> > distinct_lessons_list_formatted;
 
             for (const auto &lesson: lessons) {
                 auto list_formatted = lesson.formatted_list(featuring_object, false);
@@ -831,7 +867,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
         native_weekdays.push_back(native_weekday);
     }
 
-    std::map<str, std::map<str, std::vector<Period>>> final_hours;
+    std::map<str, std::map<str, std::vector<Period> > > final_hours;
     for (const auto &native_weekday: native_weekdays) {
         final_hours[native_weekday] = {};
     }
@@ -888,7 +924,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
             std::format("{} {} ({} {})", Config::LanguageConfig::personal_timetable, person_name,
                         std::ranges::find(Config::LanguageConfig::weekday_name_mapping,
                                           Date_Utils::date_to_str(target_date, "%A"), &std::pair<str, str>::first)
-                                ->second.substr(0, 2),
+                        ->second.substr(0, 2),
                         Date_Utils::date_to_str(target_date, "%d.%m.%Y")),
 
             std::format("<a href=\"?date={}\"><button>{}</button></a>",
@@ -907,7 +943,8 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
             std::format("<tr><th style=\"background-color: rgb({},{},{});\">{}</th>",
                         std::get<0>(Config::HTMLStyleConfig::table_header_base_rgb),
                         std::get<1>(Config::HTMLStyleConfig::table_header_base_rgb),
-                        std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)};
+                        std::get<2>(Config::HTMLStyleConfig::table_header_base_rgb), Config::LanguageConfig::time)
+    };
 
     for (const auto &native_weekday: native_weekdays) {
         html.push_back(std::format("<th style=\"background-color: rgb({},{},{});\">{}</th>", std::get<0>(rgb_value),
@@ -929,7 +966,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                 continue;
             }
 
-            std::vector<std::tuple<str, str, str, datetime, datetime>> distinct_lessons_list_formatted;
+            std::vector<std::tuple<str, str, str, datetime, datetime> > distinct_lessons_list_formatted;
 
             for (const auto &lesson: lessons) {
                 auto list_formatted = lesson.formatted_list(featuring_object, false);
@@ -1072,7 +1109,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                 continue;
             }
 
-            std::vector<std::tuple<str, str, str, datetime, datetime>> distinct_lessons_list_formatted;
+            std::vector<std::tuple<str, str, str, datetime, datetime> > distinct_lessons_list_formatted;
             std::unordered_set<str> distinct_lessons_string;
 
             for (const auto &lesson: filtered_lessons) {
@@ -1208,7 +1245,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 }
 
 void TimeTable::render_one_image_by_html(std::counting_semaphore<MAX_CONCURRENCY_WEBSITE_CAPTURE> &sem,
-                                         std::map<str, std::vector<uint8_t>> &results,
+                                         std::map<str, std::vector<uint8_t> > &results,
                                          const std::tuple<str, str> &table_name, const str &html_content) {
     sem.acquire();
     const str filename = Renderer::sanitize_filename(std::get<0>(table_name) + " " + std::get<1>(table_name) + ".png");
@@ -1220,17 +1257,17 @@ std::vector<uint8_t> TimeTable::capture_image_by_html(const int concurrency_webs
                                                       const std::tuple<str, str> &table_name, const str &html_content) {
     std::counting_semaphore<MAX_CONCURRENCY_WEBSITE_CAPTURE> sem(concurrency_website_capture);
 
-    std::map<str, std::vector<uint8_t>> results;
+    std::map<str, std::vector<uint8_t> > results;
     render_one_image_by_html(sem, results, table_name, html_content);
     return results.begin()->second;
 }
 
 // Returns map of sanitized filename -> PNG bytes
-std::map<str, std::vector<uint8_t>>
+std::map<str, std::vector<uint8_t> >
 TimeTable::capture_all_images(const int concurrency_website_capture,
-                              const std::vector<std::pair<std::tuple<str, str>, str>> &pages) {
+                              const std::vector<std::pair<std::tuple<str, str>, str> > &pages) {
     std::counting_semaphore<MAX_CONCURRENCY_WEBSITE_CAPTURE> sem(concurrency_website_capture);
-    std::map<str, std::vector<uint8_t>> results;
+    std::map<str, std::vector<uint8_t> > results;
     std::mutex results_mutex;
     std::vector<std::thread> threads;
     threads.reserve(pages.size());
@@ -1283,9 +1320,13 @@ unsigned long TimeTable::count_appearances(const Period &period_to_count) const 
     return appearances;
 }
 
-size_t TimeTable::size() const { return periods.size(); }
+size_t TimeTable::size() const {
+    return periods.size();
+}
 
-bool TimeTable::operator==(const TimeTable &other) const { return periods == other.periods; }
+bool TimeTable::operator==(const TimeTable &other) const {
+    return periods == other.periods;
+}
 
 TimeTable TimeTable::operator+(const TimeTable &other) const {
     std::vector<Period> combined;

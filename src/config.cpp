@@ -4,14 +4,14 @@
 #include <vector>
 
 namespace Config::TimeTableMappingConfig {
-    std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str>>> personal_timetable_entries;
-    std::map<int, std::tuple<str, str, std::unordered_set<str>>> teacher_mapping;
-    std::map<std::tuple<str, str, int>, std::tuple<int, int, int>> subject_to_color;
+    std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str> > > personal_timetable_entries;
+    std::map<int, std::tuple<str, str, std::unordered_set<str> > > teacher_mapping;
+    std::map<std::tuple<str, str, int>, std::tuple<int, int, int> > subject_to_color;
     std::tuple<int, int, int> default_subject_color;
 }; // namespace Config::TimeTableMappingConfig
 
 namespace Config::LanguageConfig {
-    std::vector<std::pair<str, str>> weekday_name_mapping;
+    std::vector<std::pair<str, str> > weekday_name_mapping;
     str tomorrow;
     str today;
     str yesterday;
@@ -38,9 +38,11 @@ namespace Config::LanguageConfig {
 
     void set_internal_lang(const str &lang) {
         if (lang == "en") {
-            weekday_name_mapping = {{"Monday", "Monday"},     {"Tuesday", "Tuesday"}, {"Wednesday", "Wednesday"},
-                                    {"Thursday", "Thursday"}, {"Friday", "Friday"},   {"Saturday", "Saturday"},
-                                    {"Sunday", "Sunday"}};
+            weekday_name_mapping = {
+                    {"Monday", "Monday"}, {"Tuesday", "Tuesday"}, {"Wednesday", "Wednesday"},
+                    {"Thursday", "Thursday"}, {"Friday", "Friday"}, {"Saturday", "Saturday"},
+                    {"Sunday", "Sunday"}
+            };
             tomorrow = "Tomorrow";
             today = "Today";
             yesterday = "Yesterday";
@@ -70,9 +72,11 @@ namespace Config::LanguageConfig {
 
             unexpected_error = "Error! Contact the Administrator of the Bot! Time of the error";
         } else if (lang == "de") {
-            weekday_name_mapping = {{"Monday", "Montag"},       {"Tuesday", "Dienstag"}, {"Wednesday", "Mittwoch"},
-                                    {"Thursday", "Donnerstag"}, {"Friday", "Freitag"},   {"Saturday", "Samstag"},
-                                    {"Sunday", "Sonntag"}};
+            weekday_name_mapping = {
+                    {"Monday", "Montag"}, {"Tuesday", "Dienstag"}, {"Wednesday", "Mittwoch"},
+                    {"Thursday", "Donnerstag"}, {"Friday", "Freitag"}, {"Saturday", "Samstag"},
+                    {"Sunday", "Sonntag"}
+            };
             tomorrow = "Morgen";
             today = "Heute";
             yesterday = "Gestern";
@@ -115,16 +119,18 @@ namespace Config::HTMLStyleConfig {
     std::tuple<int, int, int> today_personal_rgb_value = {21, 8, 79};
 
     str timetable_html_footer = "\n"
-                                "        <p style=\"text-align:center; font-size:20px; margin-top:10px;\">"
-                                "          powered by: IceWizard7"
-                                "        </p>";
+            "        <p style=\"text-align:center; font-size:20px; margin-top:10px;\">"
+            "          powered by: IceWizard7"
+            "        </p>";
 
     str unknown_element_symbol = "?";
 
     str lesson_time_ranges_format = "%H:%M";
-    std::vector<str> lesson_time_ranges = {"07:50 - 08:40", "08:45 - 09:35", "09:40 - 10:30", "10:45 - 11:35",
-                                           "11:40 - 12:30", "12:35 - 13:25", "13:30 - 14:20", "14:25 - 15:15",
-                                           "15:20 - 16:10", "16:15 - 17:05", "17:10 - 18:00"};
+    std::vector<str> lesson_time_ranges = {
+            "07:50 - 08:40", "08:45 - 09:35", "09:40 - 10:30", "10:45 - 11:35",
+            "11:40 - 12:30", "12:35 - 13:25", "13:30 - 14:20", "14:25 - 15:15",
+            "15:20 - 16:10", "16:15 - 17:05", "17:10 - 18:00"
+    };
 
 
     void set_internal_lang(const str &lang) {
@@ -293,7 +299,6 @@ namespace Config::HTMLStyleConfig {
                     <body>
                     )";
     }
-
 }; // namespace Config::HTMLStyleConfig
 
 namespace Config {

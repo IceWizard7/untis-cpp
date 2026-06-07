@@ -33,7 +33,9 @@ namespace Date_Utils {
 
     struct Date_Hash {
         size_t operator()(const date &d) const;
+
         size_t operator()(const day_time &d) const;
+
         size_t operator()(const datetime &dt) const;
     };
 }; // namespace Date_Utils

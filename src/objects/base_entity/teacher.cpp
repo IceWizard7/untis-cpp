@@ -2,7 +2,10 @@
 
 #include "config.hpp"
 
-Teacher::Teacher(str n, str ln, const int i) : Base_Entity(std::move(n), std::move(ln), i) {}
+Teacher::Teacher(str n, str ln, const int i) :
+    Base_Entity(std::move(n), std::move(ln), i) {
+}
+
 Teacher::~Teacher() = default;
 
 [[nodiscard]] std::variant<std::unordered_set<str>, str> Teacher::subjects() const {
@@ -71,4 +74,6 @@ Teacher::~Teacher() = default;
     return {get_name(raw_teacher_id), get_long_name(raw_teacher_id), raw_teacher_id};
 }
 
-[[nodiscard]] str Teacher::to_string() const { return Base_Entity::to_string("Teacher"); }
+[[nodiscard]] str Teacher::to_string() const {
+    return Base_Entity::to_string("Teacher");
+}

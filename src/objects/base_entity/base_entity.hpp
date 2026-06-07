@@ -11,6 +11,7 @@ public:
     int entity_id;
 
     Base_Entity(str n, str ln, int id);
+
     virtual ~Base_Entity();
 
     [[nodiscard]] str to_string(const str &class_name) const;

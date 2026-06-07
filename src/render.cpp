@@ -110,7 +110,9 @@ bool Renderer::write_base64_png(const str &base64, const str &filename) {
     return file.good();
 }
 
-str Renderer::msg(const str &body) { return "{\"id\":" + std::to_string(msg_id_++) + "," + body + "}"; }
+str Renderer::msg(const str &body) {
+    return "{\"id\":" + std::to_string(msg_id_++) + "," + body + "}";
+}
 
 
 Renderer::Renderer() = default;
@@ -208,7 +210,9 @@ int Renderer::setup() {
 
 // Core Rendering
 
-str Renderer::generate_base64_image(const str &html) { return generate_base64_image(html, 140, 200, 3.78, 3.0); }
+str Renderer::generate_base64_image(const str &html) {
+    return generate_base64_image(html, 140, 200, 3.78, 3.0);
+}
 
 str Renderer::generate_base64_image(const str &html, const int width_mm, const int height_mm, const double px_per_mm,
                                     const double scale) {
@@ -230,14 +234,16 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
 
     got_layout_metrics_ = false;
     ws_.send(msg(R"x("method":"Runtime.evaluate","params":{)x"
-                 R"x("expression":"JSON.stringify(document.body.getBoundingClientRect())",)x"
-                 R"x("returnByValue":true})x"));
+            R"x("expression":"JSON.stringify(document.body.getBoundingClientRect())",)x"
+            R"x("returnByValue":true})x"));
     while (!got_layout_metrics_)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     std::cout << "Got layout metrics" << std::endl;
 
     // Build clip rectangle from real content size
-    auto fmt = [](const double v) { return std::to_string(v); };
+    auto fmt = [](const double v) {
+        return std::to_string(v);
+    };
     const str clip = "\"x\":" + fmt(content_size_.x) +
                      ","
                      "\"y\":" +

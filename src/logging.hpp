@@ -31,13 +31,14 @@ namespace Color {
 }; // namespace Color
 
 class Logger {
-    std::map<LogLevels, std::vector<str>> log_messages;
+    std::map<LogLevels, std::vector<str> > log_messages;
     std::vector<LogLevels> only_log_levels;
 
     void log(const str &message, LogLevels level);
 
 public:
     Logger();
+
     ~Logger();
 
     static str current_time();

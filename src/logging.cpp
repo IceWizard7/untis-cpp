@@ -55,7 +55,9 @@ void Logger::log(const str &message, LogLevels level) {
     }
 
     std::cout << color << "[" << static_cast<int>(level) << "] " << time << ": " << message << Color::RESET
-              << std::endl;
+            << std::endl;
 }
 
-void Logger::log_levels(const std::vector<LogLevels> &levels) { only_log_levels = levels; }
+void Logger::log_levels(const std::vector<LogLevels> &levels) {
+    only_log_levels = levels;
+}

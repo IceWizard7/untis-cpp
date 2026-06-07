@@ -6,6 +6,7 @@
 class Teacher final : public Base_Entity {
 public:
     Teacher(str n, str ln, int i);
+
     ~Teacher() override;
 
     [[nodiscard]] std::variant<std::unordered_set<str>, str> subjects() const;

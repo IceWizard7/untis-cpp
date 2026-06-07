@@ -5,6 +5,7 @@
 class Subject final : public Base_Entity {
 public:
     Subject(str n, str ln, int i);
+
     ~Subject() override;
 
     std::tuple<int, int, int> color();

@@ -2,7 +2,10 @@
 
 #include "config.hpp"
 
-Subject::Subject(str n, str ln, const int i) : Base_Entity(std::move(n), std::move(ln), i) {}
+Subject::Subject(str n, str ln, const int i) :
+    Base_Entity(std::move(n), std::move(ln), i) {
+}
+
 Subject::~Subject() = default;
 
 std::tuple<int, int, int> Subject::color() {
@@ -16,4 +19,6 @@ std::tuple<int, int, int> Subject::color() {
     return Config::TimeTableMappingConfig::default_subject_color;
 }
 
-[[nodiscard]] str Subject::to_string() const { return Base_Entity::to_string("Subject"); }
+[[nodiscard]] str Subject::to_string() const {
+    return Base_Entity::to_string("Subject");
+}

@@ -94,14 +94,17 @@ public:
 
     json _search(const str &surname, const str &fore_name, int dob = 0, int what = -1);
 
-    std::map<str, std::variant<str, int, json>> get_student(const str &surname, const str &fore_name, int dob = 0);
+    std::map<str, std::variant<str, int, json> > get_student(
+            const str &surname, const str &fore_name, int dob = 0);
 
-    std::map<str, std::variant<str, int, json>> get_teacher_from_search(const str &surname, const str &fore_name,
-                                                                        int dob = 0);
+    std::map<str, std::variant<str, int, json> > get_teacher_from_search(
+            const str &surname, const str &fore_name,
+            int dob = 0);
 
-    [[nodiscard]] std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>
-    multithreading_result(float sleep_time, int max_threads, str raw_date, date start, date end, str function_name,
-                          bool logging, uuid call_id, bool log_out_afterwards, int max_attempts);
+    [[nodiscard]] std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > multithreading_result(
+            float sleep_time, int max_threads, date start, date end, str function_name,
+            bool logging, uuid call_id, bool log_out_afterwards, int max_attempts
+            );
 
 private:
     // Internal session tracking
@@ -113,7 +116,9 @@ private:
     std::unordered_set<uuid> active_session_uuids;
     Cache cache;
 
-    void multithread_worker(std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> &raw_result,
-                            std::mutex &raw_result_lock, const Class &klasse, str raw_date, date start, date end,
-                            str function_name, uuid call_id, int max_attempts);
+    void multithread_worker(
+            std::map<str, TimeTable> &raw_result,
+            std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
+            const Class &klasse, date start, date end, str function_name, uuid call_id,
+            int max_attempts);
 };

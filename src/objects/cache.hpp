@@ -27,7 +27,9 @@ private:
     std::optional<std::filesystem::path> cache_file_path;
 
 public:
-    explicit Cache(std::optional<std::filesystem::path> cache_file) : cache_file_path(std::move(cache_file)) {}
+    explicit Cache(std::optional<std::filesystem::path> cache_file) :
+        cache_file_path(std::move(cache_file)) {
+    }
 
     [[nodiscard]] std::optional<double> cache_file_last_changed() const;
 

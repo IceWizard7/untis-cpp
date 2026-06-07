@@ -3,17 +3,29 @@
 #include "config.hpp"
 #include "utils/all.hpp"
 
-Period::Period(std::optional<str> raw_period_code, datetime start, datetime end, std::vector<Subject> subjects,
-               std::vector<Class> klassen, std::vector<Room> rooms, std::vector<Room> original_rooms,
-               std::vector<Teacher> teachers, std::vector<Teacher> original_teachers, str student_group,
-               str activity_type, str bk_remark, str bk_text, str flags, int ls_number, str ls_text, str subst_text,
-               str period_type, int period_id) :
-    raw_period_code(std::move(raw_period_code)), start(start), end(end), subjects(std::move(subjects)),
-    klassen(std::move(klassen)), rooms(std::move(rooms)), original_rooms(std::move(original_rooms)),
-    teachers(std::move(teachers)), original_teachers(std::move(original_teachers)),
-    student_group(std::move(student_group)), activity_type(std::move(activity_type)), bk_remark(std::move(bk_remark)),
-    bk_text(std::move(bk_text)), flags(std::move(flags)), ls_number(ls_number), ls_text(std::move(ls_text)),
-    subst_text(std::move(subst_text)), period_type(std::move(period_type)), period_id(period_id) {}
+Period::Period(
+        std::optional<str> raw_period_code,
+        datetime start,
+        datetime end, std::vector<Subject> subjects,
+        std::vector<Class> klassen, std::vector<Room> rooms, std::vector<Room> original_rooms,
+        std::vector<Teacher> teachers, std::vector<Teacher> original_teachers, str student_group,
+        str activity_type, str bk_remark, str bk_text, str flags, int ls_number, str ls_text, str subst_text,
+        str period_type, int period_id
+        ) :
+    raw_period_code(std::move(raw_period_code)), start(start), end(end),
+    subjects(std::move(subjects)),
+    klassen(std::move(klassen)), rooms(std::move(rooms)),
+    original_rooms(std::move(original_rooms)),
+    teachers(std::move(teachers)),
+    original_teachers(std::move(original_teachers)),
+    student_group(std::move(student_group)),
+    activity_type(std::move(activity_type)),
+    bk_remark(std::move(bk_remark)),
+    bk_text(std::move(bk_text)), flags(std::move(flags)),
+    ls_number(ls_number), ls_text(std::move(ls_text)),
+    subst_text(std::move(subst_text)), period_type(std::move(period_type)),
+    period_id(period_id) {
+}
 
 Period::~Period() = default;
 
@@ -94,7 +106,7 @@ str Period::period_code_teacher(const Teacher &teacher_object) const {
     return "regular";
 }
 
-[[nodiscard]] std::pair<str, std::pair<bool, bool>>
+[[nodiscard]] std::pair<str, std::pair<bool, bool> >
 Period::get_period_code(const std::variant<Class, Room, Teacher> &featuring_object) const {
     // "regular" / "missed" / "extra"
     str period_code = "regular";
@@ -180,7 +192,7 @@ Period::get_period_code(const std::variant<Class, Room, Teacher> &featuring_obje
 }
 
 [[nodiscard]] str Period::klassen_str() const {
-    std::map<char, std::unordered_set<str>> klassen_level_to_letter;
+    std::map<char, std::unordered_set<str> > klassen_level_to_letter;
 
     for (const auto &klasse: klassen) {
         char klassen_level = klasse.name.at(0);
@@ -260,7 +272,7 @@ str Period::formatted_string_with_date_part(const std::variant<Class, Room, Teac
            Date_Utils::datetime_to_str(p_end, "%Y-%m-%d %H:%M:%S");
 }
 
-std::tuple<int, day_time, day_time, std::vector<Subject>, std::vector<Class>, std::vector<Room>, std::vector<Teacher>>
+std::tuple<int, day_time, day_time, std::vector<Subject>, std::vector<Class>, std::vector<Room>, std::vector<Teacher> >
 Period::regular_plan_identifier() const {
     unsigned int weekday =
             std::chrono::weekday{std::chrono::sys_days{std::chrono::floor<std::chrono::days>(start)}}.c_encoding();

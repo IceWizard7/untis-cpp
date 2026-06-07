@@ -7,7 +7,9 @@ namespace Date_Utils {
         return std::chrono::seconds{date_time - std::chrono::floor<std::chrono::days>(date_time)};
     }
 
-    date datetime_to_date(const datetime date_time) { return date{std::chrono::floor<std::chrono::days>(date_time)}; }
+    date datetime_to_date(const datetime date_time) {
+        return date{std::chrono::floor<std::chrono::days>(date_time)};
+    }
 
     str datetime_to_str(const datetime &tp, const str &format) {
         const auto t = std::chrono::system_clock::to_time_t(tp);
@@ -46,7 +48,9 @@ namespace Date_Utils {
         return oss.str();
     }
 
-    date add_days(const date &d, const int days) { return date{std::chrono::sys_days(d) + std::chrono::days(days)}; }
+    date add_days(const date &d, const int days) {
+        return date{std::chrono::sys_days(d) + std::chrono::days(days)};
+    }
 
     date add_weeks(const date &d, const int weeks) {
         return date{std::chrono::sys_days{d} + std::chrono::weeks{weeks}};
@@ -130,7 +134,11 @@ namespace Date_Utils {
                std::hash<unsigned>{}(static_cast<unsigned>(d.day()));
     }
 
-    size_t Date_Hash::operator()(const day_time &d) const { return std::hash<long>{}(d.count()); }
+    size_t Date_Hash::operator()(const day_time &d) const {
+        return std::hash<long>{}(d.count());
+    }
 
-    size_t Date_Hash::operator()(const datetime &dt) const { return std::hash<long>{}(dt.time_since_epoch().count()); }
+    size_t Date_Hash::operator()(const datetime &dt) const {
+        return std::hash<long>{}(dt.time_since_epoch().count());
+    }
 }; // namespace Date_Utils

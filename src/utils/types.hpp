@@ -11,7 +11,8 @@ using uuid = str;
 using json = nlohmann::json;
 
 template<typename T>
-concept HasToString = requires(const T &x) {
+concept HasToString = requires(const T &x)
+{
     { x.to_string() } -> std::convertible_to<str>;
 };
 

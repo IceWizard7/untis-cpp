@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]] str period_code_teacher(const Teacher &teacher_object) const;
 
-    [[nodiscard]] std::pair<str, std::pair<bool, bool>>
+    [[nodiscard]] std::pair<str, std::pair<bool, bool> >
     get_period_code(const std::variant<Class, Room, Teacher> &featuring_object) const;
 
     [[nodiscard]] str subjects_str() const;
@@ -71,7 +71,7 @@ public:
                                                       bool regular_plan) const;
 
     [[nodiscard]] std::tuple<int, day_time, day_time, std::vector<Subject>, std::vector<Class>, std::vector<Room>,
-                             std::vector<Teacher>>
+                             std::vector<Teacher> >
     regular_plan_identifier() const;
 
     [[nodiscard]] str to_string() const;

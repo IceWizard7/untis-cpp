@@ -9,15 +9,14 @@
 #include "utils/all.hpp"
 
 namespace Config::TimeTableMappingConfig {
-    extern std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str>>> personal_timetable_entries;
-    extern std::map<int, std::tuple<str, str, std::unordered_set<str>>> teacher_mapping;
-    extern std::map<std::tuple<str, str, int>, std::tuple<int, int, int>> subject_to_color;
+    extern std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str> > > personal_timetable_entries;
+    extern std::map<int, std::tuple<str, str, std::unordered_set<str> > > teacher_mapping;
+    extern std::map<std::tuple<str, str, int>, std::tuple<int, int, int> > subject_to_color;
     extern std::tuple<int, int, int> default_subject_color;
-
 }; // namespace Config::TimeTableMappingConfig
 
 namespace Config::LanguageConfig {
-    extern std::vector<std::pair<str, str>> weekday_name_mapping;
+    extern std::vector<std::pair<str, str> > weekday_name_mapping;
     extern str tomorrow;
     extern str today;
     extern str yesterday;

@@ -40,7 +40,9 @@ void Cache::update_cache(const str &key, T value) {
     cache[key] = std::move(value);
 }
 
-void Cache::clear_cache() { cache.clear(); }
+void Cache::clear_cache() {
+    cache.clear();
+}
 
 void Cache::read_cache_from_file() {
     if (!cache_file_path) {

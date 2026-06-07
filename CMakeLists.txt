@@ -23,8 +23,6 @@ add_library(Untis STATIC
         src/utils/date_utils.cpp
 
         src/objects/base_date_entity/base_date_entity.cpp
-        src/objects/base_date_entity/holiday.cpp
-        src/objects/base_date_entity/school_year.cpp
 
         src/objects/base_entity/base_entity.cpp
         src/objects/base_entity/class.cpp

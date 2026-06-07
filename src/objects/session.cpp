@@ -114,11 +114,17 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
     return data["result"];
 }
 
-int Session::format_date(const date &d) { return stoi(Date_Utils::date_to_str(d, "%Y%m%d")); }
+int Session::format_date(const date &d) {
+    return stoi(Date_Utils::date_to_str(d, "%Y%m%d"));
+}
 
-date Session::parse_date(const int d) { return Date_Utils::str_to_date(std::to_string(d), "%Y%m%d"); }
+date Session::parse_date(const int d) {
+    return Date_Utils::str_to_date(std::to_string(d), "%Y%m%d");
+}
 
-day_time Session::parse_time(const int t) { return Date_Utils::str_to_time(std::to_string(t)); }
+day_time Session::parse_time(const int t) {
+    return Date_Utils::str_to_time(std::to_string(t));
+}
 
 std::map<str, str> Session::create_date_param(const date start, const date end, const json &kwargs) {
     if (start > end) {
@@ -427,11 +433,17 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
     return TimeTable(periods);
 }
 
-json Session::teachers() { return rpc_request("getTeachers", {}); }
+json Session::teachers() {
+    return rpc_request("getTeachers", {});
+}
 
-json Session::statusdata() { return rpc_request("getStatusData", {}); }
+json Session::statusdata() {
+    return rpc_request("getStatusData", {});
+}
 
-int Session::last_import_time() { return rpc_request("getLatestImportTime", {}); }
+int Session::last_import_time() {
+    return rpc_request("getLatestImportTime", {});
+}
 
 json Session::substitutions(const date &start, const date &end, const int department_id) {
     const json params = create_date_param(start, end, {{"departmentId", department_id}});
@@ -479,9 +491,13 @@ json Session::substitutions(const date &start, const date &end, const int depart
     return lesson_time_ranges;
 }
 
-json Session::students() { return rpc_request("getStudents", {}); }
+json Session::students() {
+    return rpc_request("getStudents", {});
+}
 
-json Session::exam_types() { return rpc_request("getExamTypes", {}); }
+json Session::exam_types() {
+    return rpc_request("getExamTypes", {});
+}
 
 json Session::exams(const date &start, const date &end, const int exam_type_id) {
     const json params = create_date_param(start, end, {{"examTypeId", exam_type_id}});
@@ -511,9 +527,13 @@ json Session::class_reg_event_for_id(const date &start, const date &end, const j
     return rpc_request("getClassregEvents", params);
 }
 
-json Session::class_reg_categories() { return rpc_request("getClassregCategories", {}); }
+json Session::class_reg_categories() {
+    return rpc_request("getClassregCategories", {});
+}
 
-json Session::class_reg_category_groups() { return rpc_request("getClassregCategoryGroups", {}); }
+json Session::class_reg_category_groups() {
+    return rpc_request("getClassregCategoryGroups", {});
+}
 
 [[nodiscard]] TimeTable Session::my_timetable(const date &start, const date &end) {
     // TODO: IMPLEMENT HERE
@@ -630,8 +650,8 @@ json Session::_search(const str &surname, const str &fore_name, const int dob, c
     return rpc_request("getPersonId", params);
 }
 
-std::map<str, std::variant<str, int, json>> Session::get_student(const str &surname, const str &fore_name,
-                                                                 const int dob) {
+std::map<str, std::variant<str, int, json> > Session::get_student(const str &surname, const str &fore_name,
+                                                                  const int dob) {
     json id_val = _search(surname, fore_name, dob, 5);
     if (id_val.empty()) {
         throw std::runtime_error("Student not found");
@@ -646,8 +666,8 @@ std::map<str, std::variant<str, int, json>> Session::get_student(const str &surn
                     {"foreName", FieldValue{fore_name}}};
 }
 
-std::map<str, std::variant<str, int, json>> Session::get_teacher_from_search(const str &surname, const str &fore_name,
-                                                                             const int dob) {
+std::map<str, std::variant<str, int, json> > Session::get_teacher_from_search(const str &surname, const str &fore_name,
+                                                                              const int dob) {
     json id_val = _search(surname, fore_name, dob, 2);
     if (id_val.empty()) {
         throw std::runtime_error("Teacher not found");
@@ -663,59 +683,58 @@ std::map<str, std::variant<str, int, json>> Session::get_teacher_from_search(con
                     {"title", FieldValue{str{}}}};
 }
 
-void Session::multithread_worker(std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> &raw_result,
-                                 std::mutex &raw_result_lock, const Class &klasse, str raw_date, date start, date end,
-                                 str function_name, uuid call_id, int max_attempts) {
+void Session::multithread_worker(
+        std::map<str, TimeTable> &raw_result,
+        std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
+        const Class &klasse, date start, date end, str function_name, uuid call_id,
+        int max_attempts) {
     max_attempts = max_attempts > 1 ? max_attempts : 1;
 
-    std::optional<std::map<str, std::map<str, TimeTable>>> entry = std::nullopt;
-    std::optional<std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>> error_entry =
-            std::nullopt;
+    std::optional<std::map<str, TimeTable> > entry = std::nullopt;
+    std::optional<std::tuple<str, std::exception> > error_entry = std::nullopt;
 
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         try {
             log_in(call_id);
             TimeTable table = timetable_extended(klasse, start, end);
-            entry = {{klasse.name, {{"table", table}}}};
+            entry = {{klasse.name, table}};
             error_entry = std::nullopt;
         } catch (const std::exception &e) {
             my_logger.log_warning(std::format("Attempt {} failed in {}: {}", attempt + 1, function_name, e.what()));
 
             if (attempt == max_attempts - 1) {
                 entry = std::nullopt;
-                error_entry = {{"error", std::format("{}: []", Config::LanguageConfig::unexpected_error,
-                                                     my_logger.current_time())},
-                               {"exception", e}};
+                error_entry = {
+                        std::format("{}: []", Config::LanguageConfig::unexpected_error, my_logger.current_time()), e};
             } else {
                 std::this_thread::sleep_for(std::chrono::duration<double>(0.5 * (attempt + 1)));
-                continue;
             }
         }
     }
 
     {
         // Enter CR
-        std::lock_guard<std::mutex> lock(raw_result_lock);
+        std::lock_guard lock(raw_result_lock);
 
         if (entry.has_value()) {
             for (const auto &[key, value]: *entry) {
                 raw_result[key] = value;
             }
         } else if (error_entry.has_value()) {
-            for (const auto &[key, value]: *error_entry) {
-                raw_result[key] = value;
-            }
+            error_result = *error_entry;
         }
 
         // Leave CR
     }
 }
 
-std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>>
-Session::multithreading_result(float sleep_time, int max_threads, str raw_date, date start, date end, str function_name,
-                               bool logging, uuid call_id, bool log_out_afterwards, int max_attempts) {
-    std::map<str, std::variant<str, std::exception, std::map<str, TimeTable>>> raw_result;
+std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session::multithreading_result(
+        float sleep_time, int max_threads, date start, date end, str function_name,
+        bool logging, uuid call_id, bool log_out_afterwards, int max_attempts) {
+    std::map<str, TimeTable> raw_result;
+    std::optional<std::tuple<str, std::exception> > error_result;
     std::mutex raw_result_lock;
+
     std::vector<Class> klassen_list = all_klassen();
     std::vector<Class> viable_klassen;
     std::vector<std::thread> threads;
@@ -737,9 +756,12 @@ Session::multithreading_result(float sleep_time, int max_threads, str raw_date, 
             for (size_t j = i; j < batch_end; j++) {
                 const Class &klasse = viable_klassen[j];
 
-                threads.push_back(std::thread(&Session::multithread_worker, this, std::ref(raw_result),
-                                              std::ref(raw_result_lock), klasse, raw_date, start, end, function_name,
-                                              call_id, max_attempts));
+                threads.push_back(std::thread(
+                                &Session::multithread_worker, this, std::ref(raw_result),
+                                std::ref(error_result), std::ref(raw_result_lock), klasse, start, end,
+                                function_name, call_id,
+                                max_attempts)
+                        );
             }
 
             ++current_batch_count;
@@ -765,7 +787,7 @@ Session::multithreading_result(float sleep_time, int max_threads, str raw_date, 
             }
 
             std::cout << "\rProgress |" << bar << "| " << percent << "% complete (Batch #" << current_batch_count
-                      << " / " << total_batch_count << ")" << std::flush;
+                    << " / " << total_batch_count << ")" << std::flush;
 
             if (current_batch_count == total_batch_count) {
                 std::cout << std::endl;
@@ -780,6 +802,9 @@ Session::multithreading_result(float sleep_time, int max_threads, str raw_date, 
             log_out(call_id);
         }
 
+        if (error_result.has_value()) {
+            return *error_result;
+        }
         return raw_result;
     }
 
@@ -790,9 +815,11 @@ Session::multithreading_result(float sleep_time, int max_threads, str raw_date, 
 
         const Class &klasse = viable_klassen[i];
 
-        threads.push_back(std::thread(&Session::multithread_worker, this, std::ref(raw_result),
-                                      std::ref(raw_result_lock), klasse, raw_date, start, end, function_name, call_id,
-                                      max_attempts));
+        threads.push_back(std::thread(
+                &Session::multithread_worker, this, std::ref(raw_result),
+                std::ref(error_result),
+                std::ref(raw_result_lock), klasse, start, end, function_name, call_id,
+                max_attempts));
     }
 
     for (auto &thread: threads) {
@@ -803,6 +830,10 @@ Session::multithreading_result(float sleep_time, int max_threads, str raw_date, 
 
     if (log_out_afterwards) {
         log_out(call_id);
+    }
+
+    if (error_result.has_value()) {
+        return *error_result;
     }
 
     return raw_result;
