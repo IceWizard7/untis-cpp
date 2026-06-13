@@ -5,10 +5,10 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
-#include <ixwebsocket/IXHttpClient.h>
-#include <ixwebsocket/IXNetSystem.h>
 #include <regex>
 #include <thread>
+#include <ixwebsocket/IXHttpClient.h>
+#include <ixwebsocket/IXNetSystem.h>
 
 // Helpers
 
@@ -128,7 +128,7 @@ int Renderer::setup() {
     if (ws_url.empty())
         return 1;
 
-    std::cout << "Connecting to: " << ws_url << "\n";
+    // std::cout << "Connecting to: " << ws_url << "\n";
     ws_.setUrl(ws_url);
 
     ws_.setOnMessageCallback([this](const ix::WebSocketMessagePtr &m) {
@@ -172,7 +172,7 @@ int Renderer::setup() {
                     }
                 }
 
-                std::cout << "rect_json: " << rect_json << "\n"; // Temporary debug
+                // std::cout << "rect_json: " << rect_json << "\n"; // Temporary debug
 
                 auto extract = [&](const str &key) -> double {
                     auto kp = rect_json.find("\"" + key + "\":");
@@ -204,7 +204,7 @@ int Renderer::setup() {
     while (frame_id_.empty())
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    std::cout << "Browser ready (frameId: " << frame_id_ << ")\n";
+    // std::cout << "Browser ready (frameId: " << frame_id_ << ")\n";
     return 0;
 }
 
@@ -238,7 +238,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
             R"x("returnByValue":true})x"));
     while (!got_layout_metrics_)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    std::cout << "Got layout metrics" << std::endl;
+    // std::cout << "Got layout metrics" << std::endl;
 
     // Build clip rectangle from real content size
     auto fmt = [](const double v) {
@@ -270,7 +270,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    std::cout << "Got screenshot" << std::endl;
+    // std::cout << "Got screenshot" << std::endl;
 
     std::lock_guard<std::mutex> lk(mutex_);
     return screenshot_data_;

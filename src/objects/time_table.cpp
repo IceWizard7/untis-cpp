@@ -1,7 +1,6 @@
 #include "time_table.hpp"
 
 #include <bitset>
-#include <iostream>
 
 #include "config.hpp"
 #include "utils/all.hpp"
@@ -799,7 +798,6 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                     continue;
                 }
                 Subject su = lesson.subjects.at(0);
-                std::cout << "Added eligible subject " << su.to_string() << std::endl;
                 eligible_subjects.push_back(su);
             }
 
@@ -950,7 +948,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
         html.push_back(std::format("<th style=\"background-color: rgb({},{},{});\">{}</th>", std::get<0>(rgb_value),
                                    std::get<1>(rgb_value), std::get<2>(rgb_value), native_weekday.substr(0, 2)));
     }
-    html.push_back("<tr>");
+    html.emplace_back("<tr>");
 
     for (int count = 0; count < Config::HTMLStyleConfig::lesson_time_ranges.size(); ++count) {
         const auto &time_range = Config::HTMLStyleConfig::lesson_time_ranges[count];

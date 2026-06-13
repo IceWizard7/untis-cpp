@@ -650,8 +650,7 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
                 try {
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
-                    std::cout << "Error in getTimetable" << std::endl;
-                    std::cout << e.what();
+                    my_logger.log_debug("Error in getTimetable: " + str(e.what()));
                     return TimeTable({});
                 }
 
@@ -819,8 +818,7 @@ json Session::class_reg_category_groups() {
                 try {
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
-                    std::cout << "Error in getTimetable" << std::endl;
-                    std::cout << e.what();
+                    my_logger.log_debug("Error in getTimetable: " + str(e.what()));
                     return TimeTable({});
                 }
 
