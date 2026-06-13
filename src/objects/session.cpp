@@ -924,7 +924,7 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
     std::mutex raw_result_lock;
 
     std::vector<Class> viable_klassen;
-    // std::vector<std::thread> threads;
+    std::vector<std::thread> threads;
 
     for (const auto &klasse: all_klassen()) {
         if (klasse.name.length() == 2 && !klasse.name.starts_with("M")) {
@@ -932,48 +932,44 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
         }
     }
 
-    max_threads = std::max(max_threads, 1);
+    threads.reserve(viable_klassen.size());
 
-    const size_t total_batch_count =
-            (viable_klassen.size() + static_cast<size_t>(max_threads) - 1) /
-            static_cast<size_t>(max_threads);
+    if (logging) {
+        size_t current_batch_count = 0;
+        const size_t total_batch_count =
+                (viable_klassen.size() + static_cast<size_t>(max_threads) - 1) /
+                static_cast<size_t>(max_threads);
 
-    for (size_t batch_start = 0, current_batch_count = 0;
-         batch_start < viable_klassen.size();
-         batch_start += static_cast<size_t>(max_threads)) {
-        const size_t batch_end = std::min(
-                batch_start + static_cast<size_t>(max_threads),
-                viable_klassen.size()
-                );
-
-        std::vector<std::thread> batch_threads;
-        batch_threads.reserve(batch_end - batch_start);
-
-        for (size_t i = batch_start; i < batch_end; ++i) {
-            batch_threads.emplace_back(
-                    &Session::multithread_worker,
-                    this,
-                    std::ref(raw_result),
-                    std::ref(error_result),
-                    std::ref(raw_result_lock),
-                    viable_klassen[i],
-                    start,
-                    end,
-                    function_name,
-                    call_id,
-                    max_attempts
+        for (size_t i = 0; i < viable_klassen.size(); i += static_cast<size_t>(max_threads)) {
+            const size_t batch_end = std::min(
+                    i + static_cast<size_t>(max_threads),
+                    viable_klassen.size()
                     );
-        }
 
-        for (auto &thread: batch_threads) {
-            if (thread.joinable()) {
-                thread.join();
+            for (size_t j = i; j < batch_end; ++j) {
+                threads.emplace_back(
+                        &Session::multithread_worker,
+                        this,
+                        std::ref(raw_result),
+                        std::ref(error_result),
+                        std::ref(raw_result_lock),
+                        viable_klassen[j],
+                        start,
+                        end,
+                        function_name,
+                        call_id,
+                        max_attempts
+                        );
             }
-        }
 
-        ++current_batch_count;
+            for (size_t j = i; j < batch_end; ++j) {
+                if (threads[j].joinable()) {
+                    threads[j].join();
+                }
+            }
 
-        if (logging) {
+            ++current_batch_count;
+
             const str percent = total_batch_count == 0
                                     ? "100.0"
                                     : std::format(
@@ -988,11 +984,11 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
             str bar;
             bar.reserve(filled_length * 3 + (50 - filled_length));
 
-            for (size_t i = 0; i < filled_length; ++i) {
+            for (size_t j = 0; j < filled_length; ++j) {
                 bar += "█";
             }
 
-            for (size_t i = filled_length; i < 50; ++i) {
+            for (size_t j = filled_length; j < 50; ++j) {
                 bar += "-";
             }
 
@@ -1003,10 +999,36 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
             if (current_batch_count == total_batch_count) {
                 std::cout << std::endl;
             }
+
+            if (batch_end < viable_klassen.size()) {
+                std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+            }
+        }
+    } else {
+        for (size_t i = 0; i < viable_klassen.size(); ++i) {
+            if ((i + 1) % static_cast<size_t>(max_threads) == 0) {
+                std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+            }
+
+            threads.emplace_back(
+                    &Session::multithread_worker,
+                    this,
+                    std::ref(raw_result),
+                    std::ref(error_result),
+                    std::ref(raw_result_lock),
+                    viable_klassen[i],
+                    start,
+                    end,
+                    function_name,
+                    call_id,
+                    max_attempts
+                    );
         }
 
-        if (batch_end < viable_klassen.size()) {
-            std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+        for (auto &thread: threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
         }
     }
 
@@ -1020,4 +1042,3 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
 
     return raw_result;
 }
-
