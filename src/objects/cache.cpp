@@ -21,22 +21,17 @@ std::optional<double> Cache::cache_file_last_changed() const {
     }
 }
 
-template<typename T>
-std::optional<T> Cache::get_from_cache(const str &key) {
+std::optional<json> Cache::get_json(const str &key) const {
     const auto it = cache.find(key);
 
-    if (it == cache.end())
-        return std::nullopt;
-
-    try {
-        return it->second.get<T>();
-    } catch (...) {
+    if (it == cache.end()) {
         return std::nullopt;
     }
+
+    return it->second;
 }
 
-template<typename T>
-void Cache::update_cache(const str &key, T value) {
+void Cache::set_json(const str &key, json value) {
     cache[key] = std::move(value);
 }
 
@@ -55,10 +50,19 @@ void Cache::read_cache_from_file() {
         return;
     }
 
-    json j;
-    in >> j;
+    try {
+        json j;
+        in >> j;
 
-    cache = j.get<decltype(cache)>();
+        if (!j.is_object()) {
+            cache.clear();
+            return;
+        }
+
+        cache = j.get<decltype(cache)>();
+    } catch (const std::exception &) {
+        cache.clear();
+    }
 }
 
 void Cache::write_cache_to_file() const {

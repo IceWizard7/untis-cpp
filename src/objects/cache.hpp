@@ -1,5 +1,9 @@
 #pragma once
 
+#include <filesystem>
+#include <optional>
+#include <unordered_map>
+
 #include "utils/types.hpp"
 
 class Cache {
@@ -33,11 +37,9 @@ public:
 
     [[nodiscard]] std::optional<double> cache_file_last_changed() const;
 
-    template<typename T>
-    std::optional<T> get_from_cache(const str &key);
+    [[nodiscard]] std::optional<json> get_json(const str &key) const;
 
-    template<typename T>
-    void update_cache(const str &key, T value);
+    void set_json(const str &key, json value);
 
     void clear_cache();
 

@@ -3,10 +3,174 @@
 #include <cpr/cpr.h>
 #include <iostream>
 #include <random>
+#include <stdexcept>
 
 #include "exceptions.hpp"
 
-Session::Session(str session_name, bool use_cache, std::optional<str> cache_file, std::optional<Logger> logger,
+namespace {
+    json encode_entity(const Base_Entity &value) {
+        return {{"name", value.name}, {"longName", value.long_name}, {"id", value.entity_id}};
+    }
+
+    str json_long_name(const json &value) {
+        if (value.contains("longName") && !value.at("longName").is_null()) {
+            return value.at("longName").get<str>();
+        }
+
+        return value.value("long_name", "");
+    }
+
+    int json_int_or_zero(const json &value, const char *key) {
+        if (!value.contains(key) || value.at(key).is_null()) {
+            return 0;
+        }
+
+        return value.at(key).get<int>();
+    }
+
+    json encode_date_entity(const Base_Date_Entity &value) {
+        return {{"name", value.name},
+                {"longName", value.long_name},
+                {"id", value.entity_id},
+                {"startDate",
+                 value.start_date.has_value() ? json(Session::format_date(*value.start_date)) : json(nullptr)},
+                {"endDate", value.end_date.has_value() ? json(Session::format_date(*value.end_date)) : json(nullptr)}};
+    }
+
+    std::unordered_map<str, std::variant<str, int> > decode_date_entity_raw(const json &value) {
+        using FieldValue = std::variant<str, int>;
+
+        return {{"name", FieldValue{value.value("name", "")}},
+                {"longName", FieldValue{json_long_name(value)}},
+                {"id", FieldValue{json_int_or_zero(value, "id")}},
+                {"startDate", FieldValue{json_int_or_zero(value, "startDate")}},
+                {"endDate", FieldValue{json_int_or_zero(value, "endDate")}}};
+    }
+
+    long long datetime_to_cache_seconds(const datetime &value) {
+        return value.time_since_epoch().count();
+    }
+
+    datetime cache_seconds_to_datetime(const json &value) {
+        return datetime{std::chrono::seconds{value.get<long long>()}};
+    }
+}
+
+json SessionCacheJson<Class>::encode(const Class &value) {
+    return encode_entity(value);
+}
+
+Class SessionCacheJson<Class>::decode(const json &value) {
+    return {value.value("name", ""), json_long_name(value), json_int_or_zero(value, "id")};
+}
+
+json SessionCacheJson<Room>::encode(const Room &value) {
+    return encode_entity(value);
+}
+
+Room SessionCacheJson<Room>::decode(const json &value) {
+    return {value.value("name", ""), json_long_name(value), json_int_or_zero(value, "id")};
+}
+
+json SessionCacheJson<Subject>::encode(const Subject &value) {
+    return encode_entity(value);
+}
+
+Subject SessionCacheJson<Subject>::decode(const json &value) {
+    return {value.value("name", ""), json_long_name(value), json_int_or_zero(value, "id")};
+}
+
+json SessionCacheJson<Department>::encode(const Department &value) {
+    return encode_entity(value);
+}
+
+Department SessionCacheJson<Department>::decode(const json &value) {
+    return {value.value("name", ""), json_long_name(value), json_int_or_zero(value, "id")};
+}
+
+json SessionCacheJson<Teacher>::encode(const Teacher &value) {
+    return encode_entity(value);
+}
+
+Teacher SessionCacheJson<Teacher>::decode(const json &value) {
+    return {value.value("name", ""), json_long_name(value), json_int_or_zero(value, "id")};
+}
+
+json SessionCacheJson<Holiday>::encode(const Holiday &value) {
+    return encode_date_entity(value);
+}
+
+Holiday SessionCacheJson<Holiday>::decode(const json &value) {
+    return Holiday(decode_date_entity_raw(value));
+}
+
+json SessionCacheJson<SchoolYear>::encode(const SchoolYear &value) {
+    return encode_date_entity(value);
+}
+
+SchoolYear SessionCacheJson<SchoolYear>::decode(const json &value) {
+    return SchoolYear(decode_date_entity_raw(value));
+}
+
+json SessionCacheJson<Period>::encode(const Period &value) {
+    return {{"rawPeriodCode", value.raw_period_code.has_value() ? json(*value.raw_period_code) : json(nullptr)},
+            {"start", datetime_to_cache_seconds(value.start)},
+            {"end", datetime_to_cache_seconds(value.end)},
+            {"subjects", SessionCacheJson<std::vector<Subject> >::encode(value.subjects)},
+            {"klassen", SessionCacheJson<std::vector<Class> >::encode(value.klassen)},
+            {"rooms", SessionCacheJson<std::vector<Room> >::encode(value.rooms)},
+            {"originalRooms", SessionCacheJson<std::vector<Room> >::encode(value.original_rooms)},
+            {"teachers", SessionCacheJson<std::vector<Teacher> >::encode(value.teachers)},
+            {"originalTeachers", SessionCacheJson<std::vector<Teacher> >::encode(value.original_teachers)},
+            {"studentGroup", value.student_group},
+            {"activityType", value.activity_type},
+            {"bkRemark", value.bk_remark},
+            {"bkText", value.bk_text},
+            {"flags", value.flags},
+            {"lsNumber", value.ls_number},
+            {"lsText", value.ls_text},
+            {"substText", value.subst_text},
+            {"periodType", value.period_type},
+            {"periodId", value.period_id}};
+}
+
+Period SessionCacheJson<Period>::decode(const json &value) {
+    std::optional<str> raw_period_code = std::nullopt;
+
+    if (value.contains("rawPeriodCode") && !value.at("rawPeriodCode").is_null()) {
+        raw_period_code = value.at("rawPeriodCode").get<str>();
+    }
+
+    return {raw_period_code,
+            cache_seconds_to_datetime(value.at("start")),
+            cache_seconds_to_datetime(value.at("end")),
+            SessionCacheJson<std::vector<Subject> >::decode(value.value("subjects", json::array())),
+            SessionCacheJson<std::vector<Class> >::decode(value.value("klassen", json::array())),
+            SessionCacheJson<std::vector<Room> >::decode(value.value("rooms", json::array())),
+            SessionCacheJson<std::vector<Room> >::decode(value.value("originalRooms", json::array())),
+            SessionCacheJson<std::vector<Teacher> >::decode(value.value("teachers", json::array())),
+            SessionCacheJson<std::vector<Teacher> >::decode(value.value("originalTeachers", json::array())),
+            value.value("studentGroup", ""),
+            value.value("activityType", ""),
+            value.value("bkRemark", ""),
+            value.value("bkText", ""),
+            value.value("flags", ""),
+            value.value("lsNumber", 0),
+            value.value("lsText", ""),
+            value.value("substText", ""),
+            value.value("periodType", ""),
+            value.value("periodId", 0)};
+}
+
+json SessionCacheJson<TimeTable>::encode(const TimeTable &value) {
+    return SessionCacheJson<std::vector<Period> >::encode(value.unsorted_table());
+}
+
+TimeTable SessionCacheJson<TimeTable>::decode(const json &value) {
+    return TimeTable(SessionCacheJson<std::vector<Period> >::decode(value));
+}
+
+Session::Session(str session_name, bool use_cache, std::optional<str> cache_file, const std::optional<Logger> &logger,
                  str username, str password, str server, str school, str client) :
     session_name(std::move(session_name)), use_cache(use_cache), logger(logger.value_or(Logger{})),
     username(std::move(username)), password(std::move(password)), school(std::move(school)), client(std::move(client)),
@@ -20,6 +184,10 @@ Session::Session(str session_name, bool use_cache, std::optional<str> cache_file
     }
 
     this->server = std::move(server);
+}
+
+str Session::cache_key(const str &method_name, const json &args_json) {
+    return json::array({method_name, args_json.is_null() ? json::array() : args_json}).dump();
 }
 
 uuid Session::get_unique_uuid() {
@@ -64,8 +232,8 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
     cpr::Header headers{{"Content-Type", "application/json"}};
 
     cpr::Cookies cookies;
-    if (jsessionid) {
-        cookies = cpr::Cookies{{"JSESSIONID", *jsessionid}};
+    if (my_jsessionid) {
+        cookies = cpr::Cookies{{"JSESSIONID", *my_jsessionid}};
     }
 
     cpr::Response response = cpr::Post(cpr::Url{url}, headers, cookies, cpr::Body{payload.dump()});
@@ -126,16 +294,18 @@ day_time Session::parse_time(const int t) {
     return Date_Utils::str_to_time(std::to_string(t));
 }
 
-std::map<str, str> Session::create_date_param(const date start, const date end, const json &kwargs) {
+json Session::create_date_param(const date start, const date end, const json &kwargs) {
     if (start > end) {
         throw std::runtime_error("Start date cannot be later than end date.");
     }
     json params = {{"startDate", format_date(start)}, {"endDate", format_date(end)}};
-    params.update(kwargs);
+    if (!kwargs.is_null()) {
+        params.update(kwargs);
+    }
     return params;
 }
 
-void Session::log_in(uuid unique_id) {
+void Session::log_in(const uuid &unique_id) {
     if (active_session_uuids.empty()) {
         const json &params = {{"user", username}, {"password", password}, {"client", client}};
 
@@ -164,10 +334,10 @@ void Session::log_in(uuid unique_id) {
 
         auto result = data["result"];
 
-        jsessionid = result["sessionId"];
-        person_type = result["personType"];
-        person_id = result["personId"];
-        klasse_id = result["klasseId"];
+        my_jsessionid = result["sessionId"];
+        my_person_type = result["personType"];
+        my_person_id = result["personId"];
+        my_klasse_id = result["klasseId"];
 
         logger.log_info(std::format("Logged in ({})!", session_name));
     }
@@ -176,81 +346,93 @@ void Session::log_in(uuid unique_id) {
 
 void Session::log_out(const uuid &unique_id) {
     active_session_uuids.erase(unique_id);
-    if (active_session_uuids.empty() && jsessionid.has_value()) {
+    if (active_session_uuids.empty() && my_jsessionid.has_value()) {
         try {
             rpc_request("logout", {});
         } catch (const std::exception &) {
         }
-        jsessionid.reset();
+        my_jsessionid.reset();
 
         logger.log_info(std::format("Logged out ({})!", session_name));
     }
 }
 
 std::vector<Class> Session::all_klassen() {
-    std::vector<Class> all_kl;
-    for (const auto &k: rpc_request("getKlassen", {})) {
-        all_kl.emplace_back(k.value("name", ""), k.value("longName", ""), k.value("id", 0));
-    }
-    return all_kl;
+    return cached_call<std::vector<Class> >("Session.all_klassen", json::array(), [this] {
+        std::vector<Class> all_kl;
+        for (const auto &k: rpc_request("getKlassen", {})) {
+            all_kl.emplace_back(k.value("name", ""), k.value("longName", ""), k.value("id", 0));
+        }
+        return all_kl;
+    });
 }
 
 std::vector<Room> Session::all_rooms() {
-    std::vector<Room> all_ro;
-    for (const auto &r: rpc_request("getRooms", {})) {
-        all_ro.emplace_back(r.value("name", ""), r.value("longName", ""), r.value("id", 0));
-    }
-    return all_ro;
+    return cached_call<std::vector<Room> >("Session.all_rooms", json::array(), [this] {
+        std::vector<Room> all_ro;
+        for (const auto &r: rpc_request("getRooms", {})) {
+            all_ro.emplace_back(r.value("name", ""), r.value("longName", ""), r.value("id", 0));
+        }
+        return all_ro;
+    });
 }
 
 std::vector<Subject> Session::all_subjects() {
-    std::vector<Subject> all_su;
-    for (const auto &s: rpc_request("getSubjects", {})) {
-        all_su.emplace_back(s.value("name", ""), s.value("longName", ""), s.value("id", 0));
-    }
-    return all_su;
+    return cached_call<std::vector<Subject> >("Session.all_subjects", json::array(), [this] {
+        std::vector<Subject> all_su;
+        for (const auto &s: rpc_request("getSubjects", {})) {
+            all_su.emplace_back(s.value("name", ""), s.value("longName", ""), s.value("id", 0));
+        }
+        return all_su;
+    });
 }
 
 std::vector<Department> Session::all_departments() {
-    std::vector<Department> all_de;
-    for (const auto &d: rpc_request("getDepartments", {})) {
-        all_de.emplace_back(d.value("name", ""), d.value("longName", ""), d.value("id", 0));
-    }
-    return all_de;
+    return cached_call<std::vector<Department> >("Session.all_departments", json::array(), [this] {
+        std::vector<Department> all_de;
+        for (const auto &d: rpc_request("getDepartments", {})) {
+            all_de.emplace_back(d.value("name", ""), d.value("longName", ""), d.value("id", 0));
+        }
+        return all_de;
+    });
 }
 
 std::vector<Holiday> Session::all_holidays() {
-    std::vector<Holiday> all_ho;
+    return cached_call<std::vector<Holiday> >("Session.all_holidays", json::array(), [this] {
+        std::vector<Holiday> all_ho;
 
-    using FieldValue = std::variant<str, int>;
-    using RawObj = std::unordered_map<str, FieldValue>;
+        using FieldValue = std::variant<str, int>;
+        using RawObj = std::unordered_map<str, FieldValue>;
 
-    for (const auto &h: rpc_request("getHolidays", {})) {
-        all_ho.emplace_back(RawObj{{"name", FieldValue{h.value("name", "")}},
-                                   {"longName", FieldValue{h.value("longName", "")}},
-                                   {"id", FieldValue{h.value("id", 0)}},
-                                   {"startDate", FieldValue{h.value("startDate", 0)}},
-                                   {"endDate", FieldValue{h.value("startDate", 0)}}});
-    }
+        for (const auto &h: rpc_request("getHolidays", {})) {
+            all_ho.emplace_back(RawObj{{"name", FieldValue{h.value("name", "")}},
+                                       {"longName", FieldValue{h.value("longName", "")}},
+                                       {"id", FieldValue{h.value("id", 0)}},
+                                       {"startDate", FieldValue{h.value("startDate", 0)}},
+                                       {"endDate", FieldValue{h.value("endDate", 0)}}});
+        }
 
-    return all_ho;
+        return all_ho;
+    });
 }
 
 std::vector<SchoolYear> Session::all_schoolyears() {
-    std::vector<SchoolYear> all_sy;
+    return cached_call<std::vector<SchoolYear> >("Session.all_schoolyears", json::array(), [this] {
+        std::vector<SchoolYear> all_sy;
 
-    using FieldValue = std::variant<str, int>;
-    using RawObj = std::unordered_map<str, FieldValue>;
+        using FieldValue = std::variant<str, int>;
+        using RawObj = std::unordered_map<str, FieldValue>;
 
-    for (const auto &s: rpc_request("getSchoolyears", {})) {
-        all_sy.emplace_back(RawObj{{"name", FieldValue{s.value("name", "")}},
-                                   {"longName", FieldValue{s.value("longName", "")}},
-                                   {"id", FieldValue{s.value("id", 0)}},
-                                   {"startDate", FieldValue{s.value("startDate", 0)}},
-                                   {"endDate", FieldValue{s.value("startDate", 0)}}});
-    }
+        for (const auto &s: rpc_request("getSchoolyears", {})) {
+            all_sy.emplace_back(RawObj{{"name", FieldValue{s.value("name", "")}},
+                                       {"longName", FieldValue{s.value("longName", "")}},
+                                       {"id", FieldValue{s.value("id", 0)}},
+                                       {"startDate", FieldValue{s.value("startDate", 0)}},
+                                       {"endDate", FieldValue{s.value("endDate", 0)}}});
+        }
 
-    return all_sy;
+        return all_sy;
+    });
 }
 
 SchoolYear Session::return_current_year() {
@@ -277,37 +459,45 @@ SchoolYear Session::return_current_year() {
 }
 
 Class Session::get_klasse_by_name(const str &name) {
-    for (const auto &k: all_klassen()) {
-        if (k.name == name) {
-            return k;
+    return cached_call<Class>("Session.get_klasse_by_name", json::array({name}), [this, &name] {
+        for (const auto &k: all_klassen()) {
+            if (k.name == name) {
+                return k;
+            }
         }
-    }
-    throw std::out_of_range(std::format("Class {} was not found.", name));
+        throw std::out_of_range(std::format("Class {} was not found.", name));
+    });
 }
 
 Room Session::get_room_by_name(const str &name) {
-    for (const auto &r: all_rooms()) {
-        if (r.name == name) {
-            return r;
+    return cached_call<Room>("Session.get_room_by_name", json::array({name}), [this, &name] {
+        for (const auto &r: all_rooms()) {
+            if (r.name == name) {
+                return r;
+            }
         }
-    }
-    throw std::out_of_range(std::format("Room {} was not found.", name));
+        throw std::out_of_range(std::format("Room {} was not found.", name));
+    });
 }
 
 Teacher Session::get_teacher_by_name(const str &name) {
-    try {
-        return Teacher::from_teacher_name(name);
-    } catch (const std::exception &) {
-        throw std::out_of_range(std::format("Teacher (with name) {} was not found.", name));
-    }
+    return cached_call<Teacher>("Session.get_teacher_by_name", json::array({name}), [&name] {
+        try {
+            return Teacher::from_teacher_name(name);
+        } catch (const std::exception &) {
+            throw std::out_of_range(std::format("Teacher (with name) {} was not found.", name));
+        }
+    });
 }
 
 Teacher Session::get_teacher_by_long_name(const str &name) {
-    try {
-        return Teacher::from_teacher_long_name(name);
-    } catch (const std::exception &) {
-        throw std::out_of_range(std::format("Teacher (with long name) {} was not found.", name));
-    }
+    return cached_call<Teacher>("Session.get_teacher_by_long_name", json::array({name}), [&name] {
+        try {
+            return Teacher::from_teacher_long_name(name);
+        } catch (const std::exception &) {
+            throw std::out_of_range(std::format("Teacher (with long name) {} was not found.", name));
+        }
+    });
 }
 
 void Session::read_cache_from_file() {
@@ -326,12 +516,109 @@ std::optional<double> Session::cache_file_last_changed() const {
     return cache.cache_file_last_changed();
 }
 
+TimeTable Session::parse_timetable(const json &raw_result) {
+    if (!raw_result.is_array()) {
+        return TimeTable({});
+    }
+
+    std::map<int, json> all_su = {};
+    std::map<int, json> all_kl = {};
+    std::map<int, json> all_ro = {};
+
+    for (const auto &s: all_subjects()) {
+        all_su[s.entity_id] = SessionCacheJson<Subject>::encode(s);
+    }
+
+    for (const auto &k: all_klassen()) {
+        all_kl[k.entity_id] = SessionCacheJson<Class>::encode(k);
+    }
+
+    for (const auto &r: all_rooms()) {
+        all_ro[r.entity_id] = SessionCacheJson<Room>::encode(r);
+    }
+
+    const auto array_or_empty = [](const json &value, const char *key) {
+        if (value.contains(key) && value.at(key).is_array()) {
+            return value.at(key);
+        }
+
+        return json::array();
+    };
+
+    std::vector<Period> periods;
+
+    for (const auto &raw_p: raw_result) {
+        try {
+            datetime start_dt = Date_Utils::combine(parse_date(raw_p.at("date")), parse_time(raw_p.at("startTime")));
+            datetime end_dt = Date_Utils::combine(parse_date(raw_p.at("date")), parse_time(raw_p.at("endTime")));
+
+            std::vector<Subject> subjects;
+            std::vector<Class> klassen;
+            std::vector<Room> rooms;
+            std::vector<Room> original_rooms;
+            std::vector<Teacher> teachers;
+            std::vector<Teacher> original_teachers;
+
+            for (const auto &s: array_or_empty(raw_p, "su")) {
+                const int subject_id = json_int_or_zero(s, "id");
+                const auto master_su = all_su.contains(subject_id) ? all_su.at(subject_id) : json{};
+
+                subjects.emplace_back(master_su.value("name", ""), json_long_name(master_su), subject_id);
+            }
+
+            for (const auto &k: array_or_empty(raw_p, "kl")) {
+                const int klasse_id = json_int_or_zero(k, "id");
+                const auto master_kl = all_kl.contains(klasse_id) ? all_kl.at(klasse_id) : json{};
+
+                klassen.emplace_back(master_kl.value("name", ""), json_long_name(master_kl), klasse_id);
+            }
+
+            for (const auto &r: array_or_empty(raw_p, "ro")) {
+                const int room_id = json_int_or_zero(r, "id");
+                const auto master_ro = all_ro.contains(room_id) ? all_ro.at(room_id) : json{};
+
+                rooms.emplace_back(master_ro.value("name", ""), json_long_name(master_ro), room_id);
+            }
+
+            for (const auto &r: array_or_empty(raw_p, "ro")) {
+                if (!r.contains("orgid")) {
+                    continue;
+                }
+
+                const int original_room_id = json_int_or_zero(r, "orgid");
+                const auto master_ro = all_ro.contains(original_room_id) ? all_ro.at(original_room_id) : json{};
+
+                original_rooms.emplace_back(master_ro.value("name", ""), json_long_name(master_ro), original_room_id);
+            }
+
+            for (const auto &t: array_or_empty(raw_p, "te")) {
+                if (t.contains("id")) {
+                    teachers.emplace_back(Teacher::from_teacher_id(json_int_or_zero(t, "id")));
+                }
+
+                if (t.contains("orgid")) {
+                    original_teachers.emplace_back(Teacher::from_teacher_id(json_int_or_zero(t, "orgid")));
+                }
+            }
+
+            periods.emplace_back(raw_p.value("code", ""), start_dt, end_dt, subjects, klassen, rooms, original_rooms,
+                                 teachers, original_teachers, raw_p.value("sg", ""), raw_p.value("activityType", ""),
+                                 raw_p.value("bkRemark", ""), raw_p.value("bkText", ""), raw_p.value("flags", ""),
+                                 raw_p.value("lsnumber", 0), raw_p.value("lstext", ""), raw_p.value("substText", ""),
+                                 raw_p.value("type", ""), raw_p.value("id", 0));
+        } catch (const std::exception &) {
+        }
+    }
+
+    return TimeTable(periods);
+}
+
 TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start,
                                       const date &end) {
     std::map<str, int> element_type_table = {
             {"klasse", 1}, {"teacher", 2}, {"subject", 3}, {"room", 4}, {"student", 5}};
-    int element_type;
-    int entity_id;
+    int element_type = 0;
+    int entity_id = 0;
 
     if (const Class *c_ptr = std::get_if<Class>(&element)) {
         element_type = element_type_table["klasse"];
@@ -354,180 +641,129 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
                     {"showLsNumber", true},
                     {"showStudentgroup", true}};
 
-    json raw_result;
+    return cached_call<TimeTable>(
+            "Session.timetable_extended",
+            json::array({format_date(start), format_date(end), {{"id", entity_id}, {"type", element_type}}}),
+            [this, options] {
+                json raw_result;
 
-    try {
-        raw_result = rpc_request("getTimetable", {{"options", options}});
-    } catch (const std::exception &e) {
-        std::cout << "Error in getTimetable" << std::endl;
-        std::cout << e.what();
-        return TimeTable({});
-    }
-
-    std::map<int, json> all_su = {};
-    std::map<int, json> all_kl = {};
-    std::map<int, json> all_ro = {};
-
-    for (const auto &s: rpc_request("getSubjects", {})) {
-        all_su[s["id"]] = s;
-    }
-
-    for (const auto &k: rpc_request("getKlassen", {})) {
-        all_kl[k["id"]] = k;
-    }
-
-    for (const auto &r: rpc_request("getRooms", {})) {
-        all_ro[r["id"]] = r;
-    }
-
-    std::vector<Period> periods;
-
-    for (const auto &raw_p: raw_result) {
-        try {
-            datetime start_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["startTime"]));
-            datetime end_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["endTime"]));
-
-            std::vector<Subject> subjects;
-            std::vector<Class> klassen;
-            std::vector<Room> rooms;
-            std::vector<Room> original_rooms;
-            std::vector<Teacher> teachers;
-            std::vector<Teacher> original_teachers;
-
-            for (const auto &s: raw_p["su"]) {
-                auto master_su = all_su.contains(s["id"]) ? all_su.at(s["id"]) : json{};
-
-                subjects.emplace_back(master_su["name"], master_su["longName"], s["id"]);
-            }
-
-            for (const auto &k: raw_p["kl"]) {
-                auto master_kl = all_kl.contains(k["id"]) ? all_kl.at(k["id"]) : json{};
-
-                klassen.emplace_back(master_kl["name"], master_kl["longName"], k["id"]);
-            }
-
-            for (const auto &r: raw_p["ro"]) {
-                int rid = 0;
-                if (r.contains("id")) {
-                    rid = r["id"];
+                try {
+                    raw_result = rpc_request("getTimetable", {{"options", options}});
+                } catch (const std::exception &e) {
+                    std::cout << "Error in getTimetable" << std::endl;
+                    std::cout << e.what();
+                    return TimeTable({});
                 }
 
-                auto master_ro = all_ro.contains(rid) ? all_ro.at(rid) : json{};
-
-                rooms.emplace_back(master_ro["name"], master_ro["longName"], rid);
-            }
-
-            for (const auto &r: raw_p["ro"]) {
-                if (!r.contains("orgid")) {
-                    continue;
-                }
-                int org_id = r["orgid"];
-
-                auto master_ro = all_ro.contains(org_id) ? all_ro.at(org_id) : json{};
-
-                original_rooms.emplace_back(master_ro["name"], master_ro["longName"], org_id);
-            }
-
-            for (const auto &t: raw_p["te"]) {
-                if (t.contains("id")) {
-                    teachers.emplace_back(Teacher::from_teacher_id(t["id"]));
-                }
-                if (t.contains("orgid")) {
-                    teachers.emplace_back(Teacher::from_teacher_id(t["orgid"]));
-                }
-            }
-
-            periods.emplace_back(raw_p.value("code", ""), start_dt, end_dt, subjects, klassen, rooms, original_rooms,
-                                 teachers, original_teachers, raw_p.value("sg", ""), raw_p.value("activityType", ""),
-                                 raw_p.value("bkRemark", ""), raw_p.value("bkText", ""), raw_p.value("flags", ""),
-                                 raw_p.value("lsnumber", 0), raw_p.value("lstext", ""), raw_p.value("substText", ""),
-                                 raw_p.value("type", ""), raw_p.value("id", 0));
-        } catch (const std::exception &) {
-        }
-    }
-
-    return TimeTable(periods);
+                return parse_timetable(raw_result);
+            });
 }
 
 json Session::teachers() {
-    return rpc_request("getTeachers", {});
+    return cached_call<json>("Session.teachers", json::array(), [this] {
+        return rpc_request("getTeachers", {});
+    });
 }
 
 json Session::statusdata() {
-    return rpc_request("getStatusData", {});
+    return cached_call<json>("Session.statusdata", json::array(), [this] {
+        return rpc_request("getStatusData", {});
+    });
 }
 
 int Session::last_import_time() {
-    return rpc_request("getLatestImportTime", {});
+    return cached_call<int>("Session.last_import_time", json::array(), [this] {
+        return rpc_request("getLatestImportTime", {}).get<int>();
+    });
 }
 
 json Session::substitutions(const date &start, const date &end, const int department_id) {
     const json params = create_date_param(start, end, {{"departmentId", department_id}});
-    return rpc_request("getSubstitutions", params);
+    return cached_call<json>(
+            "Session.substitutions", json::array({format_date(start), format_date(end), department_id}),
+            [this, params] {
+                return rpc_request("getSubstitutions", params);
+            });
 }
 
 [[nodiscard]] std::vector<str> Session::timegrid_units() {
-    json raw_json = rpc_request("getTimegridUnits", {});
+    return cached_call<std::vector<str> >("Session.timegrid_units", json::array(), [this] {
+        json raw_json = rpc_request("getTimegridUnits", {});
 
-    auto get_optional_int = [](const json &obj, const char *key) -> std::optional<int> {
-        const auto it = obj.find(key);
+        auto get_optional_int = [](const json &obj, const char *key) -> std::optional<int> {
+            const auto it = obj.find(key);
 
-        if (it == obj.end() || it->is_null()) {
-            return std::nullopt;
-        }
+            if (it == obj.end() || it->is_null()) {
+                return std::nullopt;
+            }
 
-        return it->get<int>();
-    };
+            return it->get<int>();
+        };
 
-    auto convert_time = [](const std::optional<int> &value) -> str {
-        if (!value.has_value()) {
-            return "";
-        }
+        auto convert_time = [](const std::optional<int> &value) -> str {
+            if (!value.has_value()) {
+                return "";
+            }
 
-        const day_time &datetime_obj = Date_Utils::str_to_daytime(std::to_string(*value), "%H%M");
+            const day_time &datetime_obj = Date_Utils::str_to_daytime(std::to_string(*value), "%H%M");
 
-        return Date_Utils::daytime_to_str(datetime_obj, Config::HTMLStyleConfig::lesson_time_ranges_format);
-    };
+            return Date_Utils::daytime_to_str(datetime_obj, Config::HTMLStyleConfig::lesson_time_ranges_format);
+        };
 
-    std::vector<str> lesson_time_ranges;
+        std::vector<str> lesson_time_ranges;
 
-    for (const auto &item: raw_json) {
-        const auto &time_units = item.at("timeUnits");
+        for (const auto &item: raw_json) {
+            const auto &time_units = item.at("timeUnits");
 
-        for (const auto &time_unit_list: time_units) {
-            for (const auto &time_unit: time_unit_list) {
-                auto start_time = get_optional_int(time_unit, "startTime");
-                auto end_time = get_optional_int(time_unit, "endTime");
+            for (const auto &time_unit_list: time_units) {
+                for (const auto &time_unit: time_unit_list) {
+                    auto start_time = get_optional_int(time_unit, "startTime");
+                    auto end_time = get_optional_int(time_unit, "endTime");
 
-                lesson_time_ranges.push_back(std::format("{} - {}", convert_time(start_time), convert_time(end_time)));
+                    lesson_time_ranges.push_back(
+                            std::format("{} - {}", convert_time(start_time), convert_time(end_time)));
+                }
             }
         }
-    }
 
-    return lesson_time_ranges;
+        return lesson_time_ranges;
+    });
 }
 
 json Session::students() {
-    return rpc_request("getStudents", {});
+    return cached_call<json>("Session.students", json::array(), [this] {
+        return rpc_request("getStudents", {});
+    });
 }
 
 json Session::exam_types() {
-    return rpc_request("getExamTypes", {});
+    return cached_call<json>("Session.exam_types", json::array(), [this] {
+        return rpc_request("getExamTypes", {});
+    });
 }
 
 json Session::exams(const date &start, const date &end, const int exam_type_id) {
     const json params = create_date_param(start, end, {{"examTypeId", exam_type_id}});
-    return rpc_request("getExams", params);
+    return cached_call<json>(
+            "Session.exams", json::array({format_date(start), format_date(end), exam_type_id}), [this, params] {
+                return rpc_request("getExams", params);
+            });
 }
 
 json Session::timetable_with_absences(const date &start, const date &end) {
     const json params = {{"options", create_date_param(start, end, {})}};
-    return rpc_request("getTimetableWithAbsences", params);
+    return cached_call<json>(
+            "Session.timetable_with_absences", json::array({format_date(start), format_date(end)}), [this, params] {
+                return rpc_request("getTimetableWithAbsences", params);
+            });
 }
 
 json Session::class_reg_events(const date &start, const date &end) {
     const json params = create_date_param(start, end, {});
-    return rpc_request("getClassregEvents", params);
+    return cached_call<json>(
+            "Session.class_reg_events", json::array({format_date(start), format_date(end)}), [this, params] {
+                return rpc_request("getClassregEvents", params);
+            });
 }
 
 json Session::class_reg_event_for_id(const date &start, const date &end, const json &type_and_id) {
@@ -538,27 +774,35 @@ json Session::class_reg_event_for_id(const date &start, const date &end, const j
     const str &element_type = it.key();
     const int element_id = it.value().get<int>();
 
-    const json &params =
+    const json params =
             create_date_param(start, end, {{"id", element_id}, {"type", element_type_table[element_type]}});
-    return rpc_request("getClassregEvents", params);
+    return cached_call<json>(
+            "Session.class_reg_event_for_id",
+            json::array({format_date(start), format_date(end), type_and_id}),
+            [this, params] {
+                return rpc_request("getClassregEvents", params);
+            });
 }
 
 json Session::class_reg_categories() {
-    return rpc_request("getClassregCategories", {});
+    return cached_call<json>("Session.class_reg_categories", json::array(), [this] {
+        return rpc_request("getClassregCategories", {});
+    });
 }
 
 json Session::class_reg_category_groups() {
-    return rpc_request("getClassregCategoryGroups", {});
+    return cached_call<json>("Session.class_reg_category_groups", json::array(), [this] {
+        return rpc_request("getClassregCategoryGroups", {});
+    });
 }
 
 [[nodiscard]] TimeTable Session::my_timetable(const date &start, const date &end) {
-    // TODO: IMPLEMENT HERE
-    if (!person_id.has_value() || !person_type.has_value()) {
+    if (!my_person_id.has_value() || !my_person_type.has_value()) {
         throw std::runtime_error("Person ID or Type not available. Are you logged in?");
     }
     json options = {{"startDate", format_date(start)},
                     {"endDate", format_date(end)},
-                    {"element", {{"id", person_id}, {"type", person_type}}},
+                    {"element", {{"id", *my_person_id}, {"type", *my_person_type}}},
                     {"showBooking", true},
                     {"showInfo", true},
                     {"showSubstText", true},
@@ -566,104 +810,30 @@ json Session::class_reg_category_groups() {
                     {"showLsNumber", true},
                     {"showStudentgroup", true}};
 
-    json raw_result;
+    return cached_call<TimeTable>(
+            "Session.my_timetable",
+            json::array({format_date(start), format_date(end), {{"id", *my_person_id}, {"type", *my_person_type}}}),
+            [this, options] {
+                json raw_result;
 
-    try {
-        raw_result = rpc_request("getTimetable", {{"options", options}});
-    } catch (const std::exception &e) {
-        std::cout << "Error in getTimetable" << std::endl;
-        std::cout << e.what();
-        return TimeTable({});
-    }
-
-    std::map<int, json> all_su = {};
-    std::map<int, json> all_kl = {};
-    std::map<int, json> all_ro = {};
-
-    for (const auto &s: rpc_request("getSubjects", {})) {
-        all_su[s["id"]] = s;
-    }
-
-    for (const auto &k: rpc_request("getKlassen", {})) {
-        all_kl[k["id"]] = k;
-    }
-
-    for (const auto &r: rpc_request("getRooms", {})) {
-        all_ro[r["id"]] = r;
-    }
-
-    std::vector<Period> periods;
-
-    for (const auto &raw_p: raw_result) {
-        try {
-            datetime start_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["startTime"]));
-            datetime end_dt = Date_Utils::combine(parse_date(raw_p["date"]), parse_time(raw_p["endTime"]));
-
-            std::vector<Subject> subjects;
-            std::vector<Class> klassen;
-            std::vector<Room> rooms;
-            std::vector<Room> original_rooms;
-            std::vector<Teacher> teachers;
-            std::vector<Teacher> original_teachers;
-
-            for (const auto &s: raw_p["su"]) {
-                auto master_su = all_su.contains(s["id"]) ? all_su.at(s["id"]) : json{};
-
-                subjects.emplace_back(master_su["name"], master_su["longName"], s["id"]);
-            }
-
-            for (const auto &k: raw_p["kl"]) {
-                auto master_kl = all_kl.contains(k["id"]) ? all_kl.at(k["id"]) : json{};
-
-                klassen.emplace_back(master_kl["name"], master_kl["longName"], k["id"]);
-            }
-
-            for (const auto &r: raw_p["ro"]) {
-                int rid = 0;
-                if (r.contains("id")) {
-                    rid = r["id"];
+                try {
+                    raw_result = rpc_request("getTimetable", {{"options", options}});
+                } catch (const std::exception &e) {
+                    std::cout << "Error in getTimetable" << std::endl;
+                    std::cout << e.what();
+                    return TimeTable({});
                 }
 
-                auto master_ro = all_ro.contains(rid) ? all_ro.at(rid) : json{};
-
-                rooms.emplace_back(master_ro["name"], master_ro["longName"], rid);
-            }
-
-            for (const auto &r: raw_p["ro"]) {
-                if (!r.contains("orgid")) {
-                    continue;
-                }
-                int org_id = r["orgid"];
-
-                auto master_ro = all_ro.contains(org_id) ? all_ro.at(org_id) : json{};
-
-                original_rooms.emplace_back(master_ro["name"], master_ro["longName"], org_id);
-            }
-
-            for (const auto &t: raw_p["te"]) {
-                if (t.contains("id")) {
-                    teachers.emplace_back(Teacher::from_teacher_id(t["id"]));
-                }
-                if (t.contains("orgid")) {
-                    teachers.emplace_back(Teacher::from_teacher_id(t["orgid"]));
-                }
-            }
-
-            periods.emplace_back(raw_p.value("code", ""), start_dt, end_dt, subjects, klassen, rooms, original_rooms,
-                                 teachers, original_teachers, raw_p.value("sg", ""), raw_p.value("activityType", ""),
-                                 raw_p.value("bkRemark", ""), raw_p.value("bkText", ""), raw_p.value("flags", ""),
-                                 raw_p.value("lsnumber", 0), raw_p.value("lstext", ""), raw_p.value("substText", ""),
-                                 raw_p.value("type", ""), raw_p.value("id", 0));
-        } catch (const std::exception &) {
-        }
-    }
-
-    return TimeTable(periods);
+                return parse_timetable(raw_result);
+            });
 }
 
 json Session::_search(const str &surname, const str &fore_name, const int dob, const int what) {
-    const json &params = {{"sn", surname}, {"fn", fore_name}, {"dob", dob}, {"type", what}};
-    return rpc_request("getPersonId", params);
+    const json params = {{"sn", surname}, {"fn", fore_name}, {"dob", dob}, {"type", what}};
+    return cached_call<json>(
+            "Session._search", json::array({surname, fore_name, dob, what}), [this, params] {
+                return rpc_request("getPersonId", params);
+            });
 }
 
 std::map<str, std::variant<str, int, json> > Session::get_student(const str &surname, const str &fore_name,
@@ -702,7 +872,7 @@ std::map<str, std::variant<str, int, json> > Session::get_teacher_from_search(co
 void Session::multithread_worker(
         std::map<str, TimeTable> &raw_result,
         std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
-        const Class &klasse, date start, date end, str function_name, uuid call_id,
+        const Class &klasse, date start, date end, str function_name, const uuid &call_id,
         int max_attempts) {
     max_attempts = max_attempts > 1 ? max_attempts : 1;
 
@@ -721,7 +891,7 @@ void Session::multithread_worker(
             if (attempt == max_attempts - 1) {
                 entry = std::nullopt;
                 error_entry = {
-                        std::format("{}: []", Config::LanguageConfig::unexpected_error, my_logger.current_time()), e};
+                        std::format("{}: []", Config::LanguageConfig::unexpected_error, Logger::current_time()), e};
             } else {
                 std::this_thread::sleep_for(std::chrono::duration<double>(0.5 * (attempt + 1)));
             }
@@ -745,8 +915,8 @@ void Session::multithread_worker(
 }
 
 std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session::multithreading_result(
-        float sleep_time, int max_threads, date start, date end, str function_name,
-        bool logging, uuid call_id, bool log_out_afterwards, int max_attempts) {
+        float sleep_time, int max_threads, date start, date end, const str &function_name,
+        bool logging, const uuid &call_id, bool log_out_afterwards, int max_attempts) {
     std::map<str, TimeTable> raw_result;
     std::optional<std::tuple<str, std::exception> > error_result;
     std::mutex raw_result_lock;
@@ -772,11 +942,11 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
             for (size_t j = i; j < batch_end; j++) {
                 const Class &klasse = viable_klassen[j];
 
-                threads.push_back(std::thread(
-                                &Session::multithread_worker, this, std::ref(raw_result),
-                                std::ref(error_result), std::ref(raw_result_lock), klasse, start, end,
-                                function_name, call_id,
-                                max_attempts)
+                threads.emplace_back(
+                        &Session::multithread_worker, this, std::ref(raw_result),
+                        std::ref(error_result), std::ref(raw_result_lock), klasse, start, end,
+                        function_name, call_id,
+                        max_attempts
                         );
             }
 
@@ -790,8 +960,12 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
             }
 
             const str percent =
-                    std::format("{:.1f}", 100.0 * static_cast<double>(current_batch_count) / total_batch_count);
-            const int filled_length = 50 * current_batch_count / total_batch_count;
+                    total_batch_count == 0
+                        ? "0.0"
+                        : std::format("{:.1f}",
+                                      100.0 * static_cast<double>(current_batch_count) /
+                                      static_cast<double>(total_batch_count));
+            const size_t filled_length = 50 * current_batch_count / total_batch_count;
             str bar;
             bar.reserve(filled_length * 3); // █ is 3 bytes in UTF-8
             bar.reserve(50 - filled_length); // - is 1 byte in UTF-8
@@ -831,11 +1005,11 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
 
         const Class &klasse = viable_klassen[i];
 
-        threads.push_back(std::thread(
+        threads.emplace_back(
                 &Session::multithread_worker, this, std::ref(raw_result),
                 std::ref(error_result),
                 std::ref(raw_result_lock), klasse, start, end, function_name, call_id,
-                max_attempts));
+                max_attempts);
     }
 
     for (auto &thread: threads) {
