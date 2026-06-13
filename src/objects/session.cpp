@@ -282,7 +282,7 @@ Class Session::get_klasse_by_name(const str &name) {
             return k;
         }
     }
-    throw std::runtime_error(std::format("Class {} was not found.", name));
+    throw std::out_of_range(std::format("Class {} was not found.", name));
 }
 
 Room Session::get_room_by_name(const str &name) {
@@ -291,14 +291,14 @@ Room Session::get_room_by_name(const str &name) {
             return r;
         }
     }
-    throw std::runtime_error(std::format("Room {} was not found.", name));
+    throw std::out_of_range(std::format("Room {} was not found.", name));
 }
 
 Teacher Session::get_teacher_by_name(const str &name) {
     try {
         return Teacher::from_teacher_name(name);
     } catch (const std::exception &) {
-        throw std::runtime_error(std::format("Teacher (with name) {} was not found.", name));
+        throw std::out_of_range(std::format("Teacher (with name) {} was not found.", name));
     }
 }
 
@@ -306,8 +306,24 @@ Teacher Session::get_teacher_by_long_name(const str &name) {
     try {
         return Teacher::from_teacher_long_name(name);
     } catch (const std::exception &) {
-        throw std::runtime_error(std::format("Teacher (with long name) {} was not found.", name));
+        throw std::out_of_range(std::format("Teacher (with long name) {} was not found.", name));
     }
+}
+
+void Session::read_cache_from_file() {
+    cache.read_cache_from_file();
+}
+
+void Session::write_cache_to_file() const {
+    cache.write_cache_to_file();
+}
+
+void Session::clear_cache() {
+    cache.clear_cache();
+}
+
+std::optional<double> Session::cache_file_last_changed() const {
+    return cache.cache_file_last_changed();
 }
 
 TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start,
@@ -718,7 +734,7 @@ void Session::multithread_worker(
 
         if (entry.has_value()) {
             for (const auto &[key, value]: *entry) {
-                raw_result.at(key) = value;
+                raw_result.insert_or_assign(key, value);
             }
         } else if (error_entry.has_value()) {
             error_result = *error_entry;

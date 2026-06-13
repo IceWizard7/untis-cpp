@@ -106,6 +106,15 @@ public:
             bool logging, uuid call_id, bool log_out_afterwards, int max_attempts
             );
 
+    // Expose cache functions (from private cache member)
+    void read_cache_from_file();
+
+    void write_cache_to_file() const;
+
+    void clear_cache();
+
+    [[nodiscard]] std::optional<double> cache_file_last_changed() const;
+
 private:
     // Internal session tracking
     std::optional<str> jsessionid;
