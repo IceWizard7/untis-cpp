@@ -650,7 +650,7 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
                 try {
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
-                    my_logger.log_debug("Error in getTimetable: " + str(e.what()));
+                    my_logger.log_error("Error in getTimetable: " + str(e.what()));
                     return TimeTable({});
                 }
 
@@ -818,7 +818,7 @@ json Session::class_reg_category_groups() {
                 try {
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
-                    my_logger.log_debug("Error in getTimetable: " + str(e.what()));
+                    my_logger.log_error("Error in getTimetable: " + str(e.what()));
                     return TimeTable({});
                 }
 
@@ -880,9 +880,13 @@ void Session::multithread_worker(
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         try {
             log_in(call_id);
+
             TimeTable table = timetable_extended(klasse, start, end);
+
             entry = {{klasse.name, table}};
             error_entry = std::nullopt;
+
+            break;
         } catch (const std::exception &e) {
             my_logger.log_warning(std::format("Attempt {} failed in {}: {}", attempt + 1, function_name, e.what()));
 
@@ -919,100 +923,90 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
     std::optional<std::tuple<str, std::exception> > error_result;
     std::mutex raw_result_lock;
 
-    std::vector<Class> klassen_list = all_klassen();
     std::vector<Class> viable_klassen;
-    std::vector<std::thread> threads;
+    // std::vector<std::thread> threads;
 
-    for (const auto &klasse: klassen_list) {
+    for (const auto &klasse: all_klassen()) {
         if (klasse.name.length() == 2 && !klasse.name.starts_with("M")) {
             viable_klassen.push_back(klasse);
         }
     }
 
-    if (logging) {
-        size_t current_batch_count = 0;
-        size_t total_batch_count = (viable_klassen.size() + max_threads - 1) / max_threads;
+    max_threads = std::max(max_threads, 1);
 
-        for (size_t i = 0; i < viable_klassen.size(); i += max_threads) {
-            // TODO: fix-up needed with += max_threads or not? probs this is fine.
-            size_t batch_end = std::min(i + max_threads, viable_klassen.size());
+    const size_t total_batch_count =
+            (viable_klassen.size() + static_cast<size_t>(max_threads) - 1) /
+            static_cast<size_t>(max_threads);
 
-            for (size_t j = i; j < batch_end; j++) {
-                const Class &klasse = viable_klassen[j];
+    for (size_t batch_start = 0, current_batch_count = 0;
+         batch_start < viable_klassen.size();
+         batch_start += static_cast<size_t>(max_threads)) {
+        const size_t batch_end = std::min(
+                batch_start + static_cast<size_t>(max_threads),
+                viable_klassen.size()
+                );
 
-                threads.emplace_back(
-                        &Session::multithread_worker, this, std::ref(raw_result),
-                        std::ref(error_result), std::ref(raw_result_lock), klasse, start, end,
-                        function_name, call_id,
-                        max_attempts
-                        );
+        std::vector<std::thread> batch_threads;
+        batch_threads.reserve(batch_end - batch_start);
+
+        for (size_t i = batch_start; i < batch_end; ++i) {
+            batch_threads.emplace_back(
+                    &Session::multithread_worker,
+                    this,
+                    std::ref(raw_result),
+                    std::ref(error_result),
+                    std::ref(raw_result_lock),
+                    viable_klassen[i],
+                    start,
+                    end,
+                    function_name,
+                    call_id,
+                    max_attempts
+                    );
+        }
+
+        for (auto &thread: batch_threads) {
+            if (thread.joinable()) {
+                thread.join();
             }
+        }
 
-            ++current_batch_count;
+        ++current_batch_count;
 
-            for (size_t j = i; j < batch_end; j++) {
-                auto &thread = threads.at(j);
-                if (thread.joinable()) {
-                    thread.join();
-                }
-            }
+        if (logging) {
+            const str percent = total_batch_count == 0
+                                    ? "100.0"
+                                    : std::format(
+                                            "{:.1f}",
+                                            100.0 * static_cast<double>(current_batch_count) /
+                                            static_cast<double>(total_batch_count)
+                                            );
 
-            const str percent =
-                    total_batch_count == 0
-                        ? "0.0"
-                        : std::format("{:.1f}",
-                                      100.0 * static_cast<double>(current_batch_count) /
-                                      static_cast<double>(total_batch_count));
-            const size_t filled_length = 50 * current_batch_count / total_batch_count;
+            const size_t filled_length =
+                    total_batch_count == 0 ? 50 : 50 * current_batch_count / total_batch_count;
+
             str bar;
-            bar.reserve(filled_length * 3); // █ is 3 bytes in UTF-8
-            bar.reserve(50 - filled_length); // - is 1 byte in UTF-8
-            for (int j = 0; j < filled_length; ++j) {
+            bar.reserve(filled_length * 3 + (50 - filled_length));
+
+            for (size_t i = 0; i < filled_length; ++i) {
                 bar += "█";
             }
-            for (int j = 0; j < 50 - filled_length; ++j) {
+
+            for (size_t i = filled_length; i < 50; ++i) {
                 bar += "-";
             }
 
-            std::cout << "\rProgress |" << bar << "| " << percent << "% complete (Batch #" << current_batch_count
+            std::cout << "\rProgress |" << bar << "| " << percent
+                    << "% complete (Batch #" << current_batch_count
                     << " / " << total_batch_count << ")" << std::flush;
 
             if (current_batch_count == total_batch_count) {
                 std::cout << std::endl;
             }
-
-            if (i + max_threads < threads.size()) {
-                std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
-            }
         }
 
-        if (log_out_afterwards) {
-            log_out(call_id);
-        }
-
-        if (error_result.has_value()) {
-            return *error_result;
-        }
-        return raw_result;
-    }
-
-    for (int i = 0; i < viable_klassen.size(); ++i) {
-        if ((i + 1) % max_threads == 0) {
+        if (batch_end < viable_klassen.size()) {
             std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
-        }
-
-        const Class &klasse = viable_klassen[i];
-
-        threads.emplace_back(
-                &Session::multithread_worker, this, std::ref(raw_result),
-                std::ref(error_result),
-                std::ref(raw_result_lock), klasse, start, end, function_name, call_id,
-                max_attempts);
-    }
-
-    for (auto &thread: threads) {
-        if (thread.joinable()) {
-            thread.join();
         }
     }
 
@@ -1026,3 +1020,4 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
 
     return raw_result;
 }
+
