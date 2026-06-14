@@ -271,7 +271,7 @@ int Renderer::setup() {
     }
 
     // std::cout << "Browser ready (frameId: " << frame_id_ << ")\n";
-    _ready = true;
+    ready_ = true;
     return 0;
 }
 
@@ -293,7 +293,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
         const auto deadline = std::chrono::steady_clock::now() + RENDER_STEP_TIMEOUT;
         while (!flag.load()) {
             if (ws_.getReadyState() != ix::ReadyState::Open) {
-                _ready = false;
+                ready_ = false;
                 throw std::runtime_error("Chromium websocket closed while waiting for " + operation);
             }
             if (std::chrono::steady_clock::now() >= deadline) {
