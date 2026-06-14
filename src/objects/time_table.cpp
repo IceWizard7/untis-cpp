@@ -804,7 +804,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
             std::optional<Subject> chosen_subject;
 
             if (!eligible_subjects.empty()) {
-                std::ranges::sort(eligible_subjects, {}, &Subject::name);
+                std::ranges::stable_sort(eligible_subjects, {}, &Subject::name);
                 chosen_subject = eligible_subjects.at(0);
             } else {
                 if (!lessons.empty() && !lessons.at(0).subjects.empty()) {
@@ -846,23 +846,26 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 
 [[nodiscard]] str TimeTable::to_personal_html(const std::variant<Class, Room, Teacher> &featuring_object,
                                               date target_date, const str &person_name, const int n_days) const {
-    // str english_weekday = Date_Utils::date_to_str(target_date, "%A");
     std::vector<str> english_weekdays;
     std::vector<str> native_weekdays;
 
-    int bounded_n_days = n_days > 7 ? 7 : n_days;
+    int bounded_n_days = std::clamp(n_days, 0, 7);
 
     english_weekdays.reserve(bounded_n_days);
     native_weekdays.reserve(bounded_n_days);
 
     for (int i = 0; i < bounded_n_days; ++i) {
         str english_weekday = Date_Utils::date_to_str(Date_Utils::add_days(target_date, i), "%A");
-        english_weekdays.push_back(english_weekday);
+        if (!Vector_Utils::contains_value(english_weekdays, english_weekday)) {
+            english_weekdays.push_back(english_weekday);
+        }
 
         auto it = std::ranges::find(Config::LanguageConfig::weekday_name_mapping, english_weekday,
                                     &std::pair<str, str>::first);
         const str &native_weekday = it->second;
-        native_weekdays.push_back(native_weekday);
+        if (!Vector_Utils::contains_value(native_weekdays, native_weekday)) {
+            native_weekdays.push_back(native_weekday);
+        }
     }
 
     std::map<str, std::map<str, std::vector<Period> > > final_hours;
@@ -913,11 +916,15 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 
     std::vector<str> html = {
             Config::HTMLStyleConfig::personal_timetable_html_header,
-            "<p>",
+            "<main class=\"personal-timetable-page\">",
+            "<nav class=\"personal-timetable-nav\">",
+            "<div class=\"personal-timetable-nav-row\">",
 
             std::format("<a href=\"?date={}\"><button>{}</button></a>",
                         Date_Utils::date_to_str(Date_Utils::add_days(target_date, -1), "%d-%m-%Y"),
                         Config::LanguageConfig::yesterday),
+
+            "<span class=\"personal-timetable-title\">",
 
             std::format("{} {} ({} {})", Config::LanguageConfig::personal_timetable, person_name,
                         std::ranges::find(Config::LanguageConfig::weekday_name_mapping,
@@ -925,17 +932,21 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                         ->second.substr(0, 2),
                         Date_Utils::date_to_str(target_date, "%d.%m.%Y")),
 
+            "</span>",
+
             std::format("<a href=\"?date={}\"><button>{}</button></a>",
                         Date_Utils::date_to_str(Date_Utils::add_days(target_date, 1), "%d-%m-%Y"),
                         Config::LanguageConfig::tomorrow),
 
-            "</p>",
-            "<p>",
+            "</div>",
+            "<div class=\"personal-timetable-today-row\">",
 
             std::format("<a href=\"?date={}\"><button>{}</button></a>",
                         Date_Utils::date_to_str(Date_Utils::get_today(), "%d-%m-%Y"), Config::LanguageConfig::today),
 
-            "</p>",
+            "</div>",
+            "</nav>",
+            "<div class=\"personal-timetable-table-wrap\">",
             R"(<table border="1" cellspacing="0" cellpadding="5">)",
 
             std::format("<tr><th style=\"background-color: rgb({},{},{});\">{}</th>",
@@ -1051,7 +1062,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
             std::optional<Subject> chosen_subject;
 
             if (!eligible_subjects.empty()) {
-                std::ranges::sort(eligible_subjects, {}, &Subject::name);
+                std::ranges::stable_sort(eligible_subjects, {}, &Subject::name);
                 chosen_subject = eligible_subjects.at(0);
             } else {
                 if (!lessons.empty() && !lessons.at(0).subjects.empty()) {
@@ -1072,7 +1083,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 
     html.emplace_back("</table>");
 
-    html.emplace_back(Config::HTMLStyleConfig::timetable_html_footer);
+    html.emplace_back(Config::HTMLStyleConfig::personal_timetable_html_footer);
 
     str html_content = Str_Utils::join("\n", html);
 
@@ -1211,7 +1222,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
             std::optional<Subject> chosen_subject;
 
             if (!eligible_subjects.empty()) {
-                std::ranges::sort(eligible_subjects, {}, &Subject::name);
+                std::ranges::stable_sort(eligible_subjects, {}, &Subject::name);
                 chosen_subject = eligible_subjects.at(0);
             } else {
                 if (!filtered_lessons.empty() && !filtered_lessons.at(0).subjects.empty()) {
