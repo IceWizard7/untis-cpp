@@ -6,31 +6,49 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <stdexcept>
 #include <thread>
 #include <ixwebsocket/IXHttpClient.h>
 #include <ixwebsocket/IXNetSystem.h>
 
 // Helpers
 
+namespace {
+    constexpr int CDP_FETCH_ATTEMPTS = 60;
+    constexpr auto CDP_FETCH_INTERVAL = std::chrono::milliseconds(500);
+    constexpr auto WEBSOCKET_OPEN_TIMEOUT = std::chrono::seconds(10);
+    constexpr auto FRAME_ID_TIMEOUT = std::chrono::seconds(10);
+    constexpr auto RENDER_STEP_TIMEOUT = std::chrono::seconds(20);
+}
+
 str Renderer::get_websocket_url() {
     ix::HttpClient httpClient;
-    const auto response = httpClient.get("http://127.0.0.1:9222/json", httpClient.createRequest());
 
-    if (response->statusCode != 200) {
-        std::cerr << "Failed to fetch /json: " << response->statusCode << "\n";
-        return "";
+    int last_status = 0;
+
+    for (int attempt = 0; attempt < CDP_FETCH_ATTEMPTS; ++attempt) {
+        auto request = httpClient.createRequest();
+        request->connectTimeout = 1;
+        request->transferTimeout = 1;
+
+        const auto response = httpClient.get("http://127.0.0.1:9222/json", request);
+        if (response) {
+            last_status = response->statusCode;
+
+            if (response->statusCode == 200) {
+                const str &body = response->body;
+                const auto pos = body.find("\"webSocketDebuggerUrl\"");
+                if (pos != str::npos) {
+                    const auto start = body.find('"', body.find(':', pos) + 1) + 1;
+                    return body.substr(start, body.find('"', start) - start);
+                }
+            }
+        }
+        std::this_thread::sleep_for(CDP_FETCH_INTERVAL);
     }
 
-    const str &body = response->body;
-
-    const auto pos = body.find("\"webSocketDebuggerUrl\"");
-    if (pos == str::npos) {
-        std::cerr << "No webSocketDebuggerUrl found\n";
-        return "";
-    }
-
-    const auto start = body.find('"', body.find(':', pos) + 1) + 1;
-    return body.substr(start, body.find('"', start) - start);
+    std::cerr << "Failed to fetch /json after waiting: " << last_status << "\n";
+    return "";
 }
 
 str Renderer::escape_for_json(const str &s) {
@@ -117,16 +135,41 @@ str Renderer::msg(const str &body) {
 
 Renderer::Renderer() = default;
 
-Renderer::~Renderer() = default;
+Renderer::~Renderer() {
+    ws_.stop();
+}
+
+bool Renderer::is_ready() const {
+    return ready_.load() && ws_.getReadyState() == ix::ReadyState::Open && !frame_id_.empty();
+}
 
 // Setup
 
 int Renderer::setup() {
+    if (!is_ready()) {
+        return 0;
+    }
+
+    std::lock_guard<std::mutex> setup_lock(setup_mutex_);
+
+    if (!is_ready()) {
+        return 0;
+    }
+
     ix::initNetSystem();
 
     const str ws_url = get_websocket_url();
-    if (ws_url.empty())
+    if (ws_url.empty()) {
         return 1;
+    }
+
+    ws_.stop();
+    ready_ = false;
+    frame_id_.clear();
+    page_loaded_ = false;
+    got_layout_metrics_ = false;
+    got_screenshot_ = false;
+    screenshot_data_.clear();
 
     // std::cout << "Connecting to: " << ws_url << "\n";
     ws_.setUrl(ws_url);
@@ -195,16 +238,40 @@ int Renderer::setup() {
     });
 
     ws_.start();
-    while (ws_.getReadyState() != ix::ReadyState::Open)
+    const auto open_deadline = std::chrono::steady_clock::now() + WEBSOCKET_OPEN_TIMEOUT;
+    while (ws_.getReadyState() != ix::ReadyState::Open) {
+        if (std::chrono::steady_clock::now() >= open_deadline) {
+            std::cerr << "Timed out connecting to Chromium websocket\n";
+            ws_.stop();
+            return 1;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
-    ws_.send(R"({"id":1,"method":"Page.enable"})");
-    ws_.send(R"({"id":2,"method":"Page.getFrameTree"})");
+    if (!ws_.send(R"({"id":1,"method":"Page.enable"})").success ||
+        !ws_.send(R"({"id":2,"method":"Page.getFrameTree"})").success) {
+        std::cerr << "Failed to initialize Chromium page over websocket\n";
+        ws_.stop();
+        return 1;
+    }
 
-    while (frame_id_.empty())
+    const auto frame_deadline = std::chrono::steady_clock::now() + FRAME_ID_TIMEOUT;
+    while (frame_id_.empty()) {
+        if (ws_.getReadyState() != ix::ReadyState::Open) {
+            std::cerr << "Chromium websocket closed before frame tree was available\n";
+            ws_.stop();
+            return 1;
+        }
+        if (std::chrono::steady_clock::now() >= frame_deadline) {
+            std::cerr << "Timed out waiting for Chromium frame tree\n";
+            ws_.stop();
+            return 1;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
 
     // std::cout << "Browser ready (frameId: " << frame_id_ << ")\n";
+    _ready = true;
     return 0;
 }
 
@@ -214,30 +281,54 @@ str Renderer::generate_base64_image(const str &html) {
     return generate_base64_image(html, 140, 200, 3.78, 3.0);
 }
 
-str Renderer::generate_base64_image(const str &html, const int width_mm, const int height_mm, const double px_per_mm,
+str Renderer::generate_base64_image(const str &html, const int width_mm, const int height_mm,
+                                    const double px_per_mm,
                                     const double scale) {
+    std::lock_guard<std::mutex> render_lock(render_mutex_);
+    if (setup() != 0) {
+        throw std::runtime_error("Chromium DevTools endpoint is not ready at http://127.0.0.1:9222/json");
+    }
+
+    const auto wait_for = [this](const std::atomic<bool> &flag, const str &operation) {
+        const auto deadline = std::chrono::steady_clock::now() + RENDER_STEP_TIMEOUT;
+        while (!flag.load()) {
+            if (ws_.getReadyState() != ix::ReadyState::Open) {
+                _ready = false;
+                throw std::runtime_error("Chromium websocket closed while waiting for " + operation);
+            }
+            if (std::chrono::steady_clock::now() >= deadline) {
+                throw std::runtime_error("Timed out waiting for Chromium " + operation);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    };
+
     const int vp_w = static_cast<int>(std::round(width_mm * px_per_mm));
     const int vp_h = static_cast<int>(std::round(height_mm * px_per_mm));
     set_device_metrics(vp_w, vp_h, scale);
 
     page_loaded_ = false;
-    ws_.send(msg("\"method\":\"Page.setDocumentContent\",\"params\":{"
-                 "\"frameId\":\"" +
-                 frame_id_ +
-                 "\","
-                 "\"html\":\"" +
-                 escape_for_json(html) + "\"}"));
+    if (!ws_.send(msg("\"method\":\"Page.setDocumentContent\",\"params\":{"
+                      "\"frameId\":\"" +
+                      frame_id_ +
+                      "\","
+                      "\"html\":\"" +
 
-    while (!page_loaded_) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                      escape_for_json(html) + "\"}")).success
+    ) {
+        ready_ = false;
+        throw std::runtime_error("Failed to send Page.setDocumentContent to Chromium");
+
     }
+    wait_for(page_loaded_, "page load event");
 
     got_layout_metrics_ = false;
-    ws_.send(msg(R"x("method":"Runtime.evaluate","params":{)x"
+    if (!ws_.send(msg(R"x("method":"Runtime.evaluate","params":{)x"
             R"x("expression":"JSON.stringify(document.body.getBoundingClientRect())",)x"
-            R"x("returnByValue":true})x"));
-    while (!got_layout_metrics_)
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            R"x("returnByValue":true})x")).success) {
+        ready_ = false;
+        throw std::runtime_error("Failed to send Runtime.evaluate to Chromium");
+    }
     // std::cout << "Got layout metrics" << std::endl;
 
     // Build clip rectangle from real content size
@@ -259,16 +350,16 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
                      fmt(scale);
 
     got_screenshot_ = false;
-    ws_.send(msg("\"method\":\"Page.captureScreenshot\","
-                 "\"params\":{"
-                 "\"format\":\"png\","
-                 "\"captureBeyondViewport\":true," // Escape the viewport box
-                 "\"clip\":{" +
-                 clip + "}}"));
-
-    while (!got_screenshot_) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    if (!ws_.send(msg("\"method\":\"Page.captureScreenshot\","
+                      "\"params\":{"
+                      "\"format\":\"png\","
+                      "\"captureBeyondViewport\":true," // Escape the viewport box
+                      "\"clip\":{" +
+                      clip + "}}")).success) {
+        ready_ = false;
+        throw std::runtime_error("Failed to send Page.captureScreenshot to Chromium");;
     }
+    wait_for(got_screenshot_, "screenshot capture");
 
     // std::cout << "Got screenshot" << std::endl;
 
@@ -277,16 +368,25 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
 }
 
 void Renderer::set_device_metrics(const int width_px, const int height_px, const double scale) {
-    ws_.send(msg("\"method\":\"Emulation.setDeviceMetricsOverride\","
-                 "\"params\":{"
-                 "\"width\":" +
-                 std::to_string(width_px) +
-                 ","
-                 "\"height\":" +
-                 std::to_string(height_px) +
-                 ","
-                 "\"deviceScaleFactor\":" +
-                 std::to_string(scale) +
-                 ","
-                 "\"mobile\":false}"));
+    if (setup() != 0) {
+        throw std::runtime_error("Chromium DevTools endpoint is not ready at http://127.0.0.1:9222/json");
+    }
+
+    if (!ws_.send(msg("\"method\":\"Emulation.setDeviceMetricsOverride\","
+                      "\"params\":{"
+                      "\"width\":" +
+                      std::to_string(width_px) +
+                      ","
+                      "\"height\":" +
+                      std::to_string(height_px) +
+                      ","
+                      "\"deviceScaleFactor\":" +
+                      std::to_string(scale) +
+                      ","
+                      "\"mobile\":false}")).success) {
+        ready_ = false;
+        throw std::runtime_error("Failed to send Emulation.setDeviceMetricsOverride to Chromium");
+    }
+
+
 }

@@ -33,6 +33,8 @@ private:
 
     static std::string escape_for_json(const std::string &s);
 
+    bool is_ready() const;
+
     std::string msg(const std::string &body);
 
     struct {
@@ -42,8 +44,11 @@ private:
     std::atomic<bool> got_layout_metrics_{false};
     ix::WebSocket ws_;
     std::string frame_id_;
+    std::atomic<bool> ready_{false};
     std::atomic<int> msg_id_{10};
     std::mutex mutex_;
+    std::mutex setup_mutex_;
+    std::mutex render_mutex_;
     std::string screenshot_data_;
     std::atomic<bool> got_screenshot_{false};
     std::atomic<bool> page_loaded_{false};
