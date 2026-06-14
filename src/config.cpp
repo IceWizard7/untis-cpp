@@ -144,6 +144,12 @@ namespace Config::HTMLStyleConfig {
                       <title>)" +
                                 LanguageConfig::personal_timetable + R"(</title>
                       <style>
+                            body {
+                                padding: 24px;          /* interior margin captured by the screenshot clip; tune to taste */
+                                background: #fff;       /* ensure the padded area renders white in the PNG                */
+                                box-sizing: border-box; /* keep body border-box width == viewport width                   */
+                            }
+
                             @page {
                                 size: 140mm 200mm; /* slightly smaller than A5 */
                                 margin: 100mm;       /* adjust margin to taste */
