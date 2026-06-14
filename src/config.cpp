@@ -7,7 +7,7 @@ namespace Config::TimeTableMappingConfig {
     std::map<str, std::tuple<std::unordered_set<str>, std::unordered_set<str> > > personal_timetable_entries;
     std::map<int, std::tuple<str, str, std::unordered_set<str> > > teacher_mapping;
     std::map<std::tuple<str, str, int>, std::tuple<int, int, int> > subject_to_color;
-    std::tuple<int, int, int> default_subject_color;
+    std::tuple<int, int, int> default_subject_color = {255, 255, 255};
 }; // namespace Config::TimeTableMappingConfig
 
 namespace Config::LanguageConfig {
