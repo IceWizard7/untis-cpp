@@ -1,6 +1,5 @@
 #include "session.hpp"
 
-#include <cpr/cpr.h>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -222,6 +221,13 @@ uuid Session::get_unique_uuid() {
 }
 
 json Session::rpc_request(const str &method, const json &params, bool retry_on_authentication_error) {
+    cpr::Session http;
+    return rpc_request_with_session(http, method, params, retry_on_authentication_error);
+}
+
+
+json Session::rpc_request_with_session(cpr::Session &http, const str &method, const json &params,
+                                       bool retry_on_authentication_error) {
     json payload = {{"id", get_unique_uuid()}, // TODO: WHY???
                     {"method", method},
                     {"params", params},
@@ -229,14 +235,19 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
 
     str url = std::format("{}/jsonrpc.do?school={}", server, school);
 
-    cpr::Header headers{{"Content-Type", "application/json"}};
+    http.SetUrl(cpr::Url{url});
+    http.SetHeader(cpr::Header{{"Content-Type", "application/json"}});
 
     cpr::Cookies cookies;
     if (my_jsessionid) {
-        cookies = cpr::Cookies{{"JSESSIONID", *my_jsessionid}};
+        http.SetCookies(cpr::Cookies{{"JSESSIONID", *my_jsessionid}});
+    } else {
+        http.SetCookies(cpr::Cookies{});
     }
 
-    cpr::Response response = cpr::Post(cpr::Url{url}, headers, cookies, cpr::Body{payload.dump()});
+    http.SetBody(cpr::Body{payload.dump()});
+
+    cpr::Response response = http.Post();
 
     if (response.status_code >= 400) {
         throw std::runtime_error(std::format("HTTP error {}", response.status_code));
@@ -257,9 +268,7 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
                 auto call_id = get_unique_uuid();
 
                 log_in(call_id);
-
-                auto result = rpc_request(method, params, false);
-
+                auto result = rpc_request_with_session(http, method, params, false);
                 log_out(call_id);
 
                 return result;
@@ -281,6 +290,7 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
 
     return data["result"];
 }
+
 
 int Session::format_date(const date &d) {
     return stoi(Date_Utils::date_to_str(d, "%Y%m%d"));

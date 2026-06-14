@@ -3,6 +3,7 @@
 #include <functional>
 #include <optional>
 #include <variant>
+#include <cpr/cpr.h>
 
 #include "cache.hpp"
 #include "logging.hpp"
@@ -109,7 +110,7 @@ struct SessionCacheJson<TimeTable> {
     static TimeTable decode(const json &value);
 };
 
-class Session {
+class Session final {
 public:
     str session_name;
     bool use_cache;
@@ -125,11 +126,11 @@ public:
             str username,
             str password, str server, str school, str client);
 
-    virtual ~Session() = default;
+    ~Session() = default;
 
     static uuid get_unique_uuid();
 
-    virtual json rpc_request(const str &method, const json &params, bool retry_on_authentication_error = true);
+    json rpc_request(const str &method, const json &params, bool retry_on_authentication_error = true);
 
     static int format_date(const date &d);
 
@@ -257,4 +258,7 @@ private:
             std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
             const Class &klasse, date start, date end, str function_name, const uuid &call_id,
             int max_attempts);
+
+    json rpc_request_with_session(cpr::Session &http, const str &method, const json &params,
+                                  bool retry_on_authentication_error = true);
 };
