@@ -59,7 +59,8 @@ public:
 
     [[nodiscard]] std::tuple<std::vector<str>, std::vector<str>, std::map<str, std::map<str, std::vector<Period> > > >
     html_setup(
-            int user_id, bool website, const std::tuple<str, str> &table_name, const std::optional<date> &start_date,
+            uint64_t user_id, bool website, const std::tuple<str, str> &table_name,
+            const std::optional<date> &start_date,
             const std::optional<date> &end_date
             ) const;
 
@@ -73,13 +74,13 @@ public:
             );
 
     [[nodiscard]] str to_html(
-            const std::variant<Class, Room, Teacher> &featuring_object, int user_id, bool website,
+            const std::variant<Class, Room, Teacher> &featuring_object, uint64_t user_id, bool website,
             const std::tuple<str, str> &table_name, std::optional<date> start_date,
             std::optional<date> end_date
             ) const;
 
     [[nodiscard]] str to_untis_html(
-            const std::variant<Class, Room, Teacher> &featuring_object, int user_id,
+            const std::variant<Class, Room, Teacher> &featuring_object, uint64_t user_id,
             const std::tuple<str, str> &table_name, date start_date, date end_date
             ) const;
 
@@ -94,7 +95,7 @@ public:
             ) const;
 
     [[nodiscard]] str to_regular_html(
-            const std::variant<Class, Room, Teacher> &featuring_object, int user_id,
+            const std::variant<Class, Room, Teacher> &featuring_object, uint64_t user_id,
             const std::tuple<str, str> &table_name
             ) const;
 
@@ -115,7 +116,8 @@ public:
 
     [[nodiscard]] std::vector<uint8_t> table_to_image(int concurrency_website_capture,
                                                       const std::variant<Class, Room, Teacher> &featuring_object,
-                                                      int user_id, const date &start_date, const date &end_date) const;
+                                                      uint64_t user_id, const date &start_date,
+                                                      const date &end_date) const;
 
     [[nodiscard]] unsigned long count_appearances(const Period &period_to_count) const;
 
