@@ -481,7 +481,7 @@ TimeTable::to_table() const {
 }
 
 [[nodiscard]] std::tuple<std::vector<str>, std::vector<str>, std::map<str, std::map<str, std::vector<Period> > > >
-TimeTable::html_setup(const uint64_t user_id, const bool website, const std::tuple<str, str> &table_name,
+TimeTable::html_setup(const int64_t user_id, const bool website, const std::tuple<str, str> &table_name,
                       const std::optional<date> &start_date, const std::optional<date> &end_date) const {
     std::map<str, std::map<str, std::vector<Period> > > final_hours;
 
@@ -665,7 +665,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
                                   lesson_count_index + 1, start, end));
 }
 
-[[nodiscard]] str TimeTable::to_html(const std::variant<Class, Room, Teacher> &featuring_object, const uint64_t user_id,
+[[nodiscard]] str TimeTable::to_html(const std::variant<Class, Room, Teacher> &featuring_object, const int64_t user_id,
                                      const bool website, const std::tuple<str, str> &table_name,
                                      const std::optional<date> start_date, const std::optional<date> end_date) const {
     auto [html, weekdays, final_hours] = html_setup(user_id, website, table_name, start_date, end_date);
@@ -833,7 +833,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 }
 
 [[nodiscard]] str TimeTable::to_untis_html(const std::variant<Class, Room, Teacher> &featuring_object,
-                                           const uint64_t user_id, const std::tuple<str, str> &table_name,
+                                           const int64_t user_id, const std::tuple<str, str> &table_name,
                                            const date start_date, const date end_date) const {
     return to_html(featuring_object, user_id, false, table_name, start_date, end_date);
 }
@@ -1080,7 +1080,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 }
 
 [[nodiscard]] str TimeTable::to_regular_html(const std::variant<Class, Room, Teacher> &featuring_object,
-                                             uint64_t user_id,
+                                             int64_t user_id,
                                              const std::tuple<str, str> &table_name) const {
     auto [html, weekdays, final_hours] = html_setup(user_id, false, table_name, std::nullopt, std::nullopt);
 
@@ -1292,7 +1292,7 @@ TimeTable::capture_all_images(const int concurrency_website_capture,
 
 std::vector<uint8_t> TimeTable::table_to_image(const int concurrency_website_capture,
                                                const std::variant<Class, Room, Teacher> &featuring_object,
-                                               const uint64_t user_id, const date &start_date,
+                                               const int64_t user_id, const date &start_date,
                                                const date &end_date) const {
     const std::tuple<str, str> table_name = get_table_name(featuring_object, start_date, end_date);
     const str html_content = to_untis_html(featuring_object, user_id, table_name, start_date, end_date);
