@@ -145,7 +145,7 @@ namespace Config::HTMLStyleConfig {
                                 LanguageConfig::personal_timetable + R"(</title>
                       <style>
                             body {
-                                padding: 8px;          /* interior margin captured by the screenshot clip; tune to taste */
+                                padding: 16px;         /* interior margin captured by the screenshot clip; tune to taste */
                                 background: #fff;       /* ensure the padded area renders white in the PNG                */
                                 box-sizing: border-box; /* keep body border-box width == viewport width                   */
                             }
@@ -169,6 +169,7 @@ namespace Config::HTMLStyleConfig {
                                 table-layout: fixed;
                                 font-size: 9pt; /* slightly smaller font to fit portrait */
                                 font-family: monospace;
+                                border: 1px solid #000; /* black outer frame around the table */
                                 box-shadow: 0 0 10px rgba(0,0,0,0.1);
                             }
 
