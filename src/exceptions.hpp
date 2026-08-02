@@ -1,7 +1,6 @@
 #pragma once
 
-
-#include "config.hpp"
+#include "utils/types.hpp"
 
 #include <stdexcept>
 #include <string>
