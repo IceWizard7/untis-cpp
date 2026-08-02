@@ -146,13 +146,13 @@ bool Renderer::is_ready() const {
 // Setup
 
 int Renderer::setup() {
-    if (!is_ready()) {
+    if (is_ready()) {
         return 0;
     }
 
     std::lock_guard<std::mutex> setup_lock(setup_mutex_);
 
-    if (!is_ready()) {
+    if (is_ready()) {
         return 0;
     }
 
@@ -171,7 +171,7 @@ int Renderer::setup() {
     got_screenshot_ = false;
     screenshot_data_.clear();
 
-    // std::cout << "Connecting to: " << ws_url << "\n";
+    // Connecting
     ws_.setUrl(ws_url);
 
     ws_.setOnMessageCallback([this](const ix::WebSocketMessagePtr &m) {
@@ -214,8 +214,6 @@ int Renderer::setup() {
                         rect_json += s[i];
                     }
                 }
-
-                // std::cout << "rect_json: " << rect_json << "\n"; // Temporary debug
 
                 auto extract = [&](const str &key) -> double {
                     auto kp = rect_json.find("\"" + key + "\":");
@@ -270,7 +268,7 @@ int Renderer::setup() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    // std::cout << "Browser ready (frameId: " << frame_id_ << ")\n";
+    // Browser ready
     ready_ = true;
     return 0;
 }
@@ -329,7 +327,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
         ready_ = false;
         throw std::runtime_error("Failed to send Runtime.evaluate to Chromium");
     }
-    // std::cout << "Got layout metrics" << std::endl;
+    wait_for(got_layout_metrics_, "layout metrics");
 
     // Build clip rectangle from real content size
     auto fmt = [](const double v) {
@@ -361,7 +359,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
     }
     wait_for(got_screenshot_, "screenshot capture");
 
-    // std::cout << "Got screenshot" << std::endl;
+    // Got screenshot
 
     std::lock_guard<std::mutex> lk(mutex_);
     return screenshot_data_;
@@ -387,6 +385,4 @@ void Renderer::set_device_metrics(const int width_px, const int height_px, const
         ready_ = false;
         throw std::runtime_error("Failed to send Emulation.setDeviceMetricsOverride to Chromium");
     }
-
-
 }
