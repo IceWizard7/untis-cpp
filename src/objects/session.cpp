@@ -36,7 +36,7 @@ namespace {
                 {"endDate", value.end_date.has_value() ? json(Session::format_date(*value.end_date)) : json(nullptr)}};
     }
 
-    std::unordered_map<str, std::variant<str, int> > decode_date_entity_raw(const json &value) {
+    std::unordered_map<str, std::variant<str, int>> decode_date_entity_raw(const json &value) {
         using FieldValue = std::variant<str, int>;
 
         return {{"name", FieldValue{value.value("name", "")}},
@@ -115,12 +115,12 @@ json SessionCacheJson<Period>::encode(const Period &value) {
     return {{"rawPeriodCode", value.raw_period_code.has_value() ? json(*value.raw_period_code) : json(nullptr)},
             {"start", datetime_to_cache_seconds(value.start)},
             {"end", datetime_to_cache_seconds(value.end)},
-            {"subjects", SessionCacheJson<std::vector<Subject> >::encode(value.subjects)},
-            {"klassen", SessionCacheJson<std::vector<Class> >::encode(value.klassen)},
-            {"rooms", SessionCacheJson<std::vector<Room> >::encode(value.rooms)},
-            {"originalRooms", SessionCacheJson<std::vector<Room> >::encode(value.original_rooms)},
-            {"teachers", SessionCacheJson<std::vector<Teacher> >::encode(value.teachers)},
-            {"originalTeachers", SessionCacheJson<std::vector<Teacher> >::encode(value.original_teachers)},
+            {"subjects", SessionCacheJson<std::vector<Subject>>::encode(value.subjects)},
+            {"klassen", SessionCacheJson<std::vector<Class>>::encode(value.klassen)},
+            {"rooms", SessionCacheJson<std::vector<Room>>::encode(value.rooms)},
+            {"originalRooms", SessionCacheJson<std::vector<Room>>::encode(value.original_rooms)},
+            {"teachers", SessionCacheJson<std::vector<Teacher>>::encode(value.teachers)},
+            {"originalTeachers", SessionCacheJson<std::vector<Teacher>>::encode(value.original_teachers)},
             {"studentGroup", value.student_group},
             {"activityType", value.activity_type},
             {"bkRemark", value.bk_remark},
@@ -143,12 +143,12 @@ Period SessionCacheJson<Period>::decode(const json &value) {
     return {raw_period_code,
             cache_seconds_to_datetime(value.at("start")),
             cache_seconds_to_datetime(value.at("end")),
-            SessionCacheJson<std::vector<Subject> >::decode(value.value("subjects", json::array())),
-            SessionCacheJson<std::vector<Class> >::decode(value.value("klassen", json::array())),
-            SessionCacheJson<std::vector<Room> >::decode(value.value("rooms", json::array())),
-            SessionCacheJson<std::vector<Room> >::decode(value.value("originalRooms", json::array())),
-            SessionCacheJson<std::vector<Teacher> >::decode(value.value("teachers", json::array())),
-            SessionCacheJson<std::vector<Teacher> >::decode(value.value("originalTeachers", json::array())),
+            SessionCacheJson<std::vector<Subject>>::decode(value.value("subjects", json::array())),
+            SessionCacheJson<std::vector<Class>>::decode(value.value("klassen", json::array())),
+            SessionCacheJson<std::vector<Room>>::decode(value.value("rooms", json::array())),
+            SessionCacheJson<std::vector<Room>>::decode(value.value("originalRooms", json::array())),
+            SessionCacheJson<std::vector<Teacher>>::decode(value.value("teachers", json::array())),
+            SessionCacheJson<std::vector<Teacher>>::decode(value.value("originalTeachers", json::array())),
             value.value("studentGroup", ""),
             value.value("activityType", ""),
             value.value("bkRemark", ""),
@@ -162,11 +162,11 @@ Period SessionCacheJson<Period>::decode(const json &value) {
 }
 
 json SessionCacheJson<TimeTable>::encode(const TimeTable &value) {
-    return SessionCacheJson<std::vector<Period> >::encode(value.unsorted_table());
+    return SessionCacheJson<std::vector<Period>>::encode(value.unsorted_table());
 }
 
 TimeTable SessionCacheJson<TimeTable>::decode(const json &value) {
-    return TimeTable(SessionCacheJson<std::vector<Period> >::decode(value));
+    return TimeTable(SessionCacheJson<std::vector<Period>>::decode(value));
 }
 
 Session::Session(str session_name, bool use_cache, std::optional<str> cache_file, const std::optional<Logger> &logger,
@@ -187,6 +187,10 @@ Session::Session(str session_name, bool use_cache, std::optional<str> cache_file
 
 str Session::cache_key(const str &method_name, const json &args_json) {
     return json::array({method_name, args_json.is_null() ? json::array() : args_json}).dump();
+}
+
+std::uint64_t Session::make_rpc_request_id() {
+    return ++next_id;
 }
 
 uuid Session::get_unique_uuid() {
@@ -220,7 +224,7 @@ uuid Session::get_unique_uuid() {
     return oss.str();
 }
 
-json Session::rpc_request(const str &method, const json &params, bool retry_on_authentication_error) {
+json Session::rpc_request(const str &method, const json &params, const bool retry_on_authentication_error) {
     cpr::Session http;
     return rpc_request_with_session(http, method, params, retry_on_authentication_error);
 }
@@ -228,7 +232,7 @@ json Session::rpc_request(const str &method, const json &params, bool retry_on_a
 
 json Session::rpc_request_with_session(cpr::Session &http, const str &method, const json &params,
                                        bool retry_on_authentication_error) {
-    json payload = {{"id", get_unique_uuid()}, // TODO: WHY???
+    json payload = {{"id", make_rpc_request_id()},
                     {"method", method},
                     {"params", params},
                     {"jsonrpc", "2.0"}};
@@ -320,7 +324,7 @@ void Session::log_in(const uuid &unique_id) {
         const json &params = {{"user", username}, {"password", password}, {"client", client}};
 
         // Use raw request for login to catch the session ID
-        json payload = {{"id", get_unique_uuid()}, // TODO: WHY???
+        json payload = {    {"id", make_rpc_request_id()},
                         {"method", "authenticate"},
                         {"params", params},
                         {"jsonrpc", "2.0"}};
@@ -367,18 +371,33 @@ void Session::log_out(const uuid &unique_id) {
     }
 }
 
-std::vector<Class> Session::all_klassen() {
-    return cached_call<std::vector<Class> >("Session.all_klassen", json::array(), [this] {
+std::vector<Class> Session::all_klassen(const std::optional<int> schoolyear_id) {
+    const json cache_args = json::array({
+            schoolyear_id.has_value()
+                ? json(*schoolyear_id)
+                : json(nullptr)
+    });
+
+    json params = json::object();
+    if (schoolyear_id.has_value()) {
+        params["schoolyearId"] = *schoolyear_id;
+    }
+
+    return cached_call<std::vector<Class>>("Session.all_klassen", cache_args, [this, params] {
         std::vector<Class> all_kl;
-        for (const auto &k: rpc_request("getKlassen", {})) {
-            all_kl.emplace_back(k.value("name", ""), k.value("longName", ""), k.value("id", 0));
+        for (const auto &k: rpc_request("getKlassen", params)) {
+            all_kl.emplace_back(
+                    k.value("name", ""),
+                    k.value("longName", ""),
+                    k.value("id", 0)
+                    );
         }
         return all_kl;
     });
 }
 
 std::vector<Room> Session::all_rooms() {
-    return cached_call<std::vector<Room> >("Session.all_rooms", json::array(), [this] {
+    return cached_call<std::vector<Room>>("Session.all_rooms", json::array(), [this] {
         std::vector<Room> all_ro;
         for (const auto &r: rpc_request("getRooms", {})) {
             all_ro.emplace_back(r.value("name", ""), r.value("longName", ""), r.value("id", 0));
@@ -388,7 +407,7 @@ std::vector<Room> Session::all_rooms() {
 }
 
 std::vector<Subject> Session::all_subjects() {
-    return cached_call<std::vector<Subject> >("Session.all_subjects", json::array(), [this] {
+    return cached_call<std::vector<Subject>>("Session.all_subjects", json::array(), [this] {
         std::vector<Subject> all_su;
         for (const auto &s: rpc_request("getSubjects", {})) {
             all_su.emplace_back(s.value("name", ""), s.value("longName", ""), s.value("id", 0));
@@ -398,7 +417,7 @@ std::vector<Subject> Session::all_subjects() {
 }
 
 std::vector<Department> Session::all_departments() {
-    return cached_call<std::vector<Department> >("Session.all_departments", json::array(), [this] {
+    return cached_call<std::vector<Department>>("Session.all_departments", json::array(), [this] {
         std::vector<Department> all_de;
         for (const auto &d: rpc_request("getDepartments", {})) {
             all_de.emplace_back(d.value("name", ""), d.value("longName", ""), d.value("id", 0));
@@ -408,7 +427,7 @@ std::vector<Department> Session::all_departments() {
 }
 
 std::vector<Holiday> Session::all_holidays() {
-    return cached_call<std::vector<Holiday> >("Session.all_holidays", json::array(), [this] {
+    return cached_call<std::vector<Holiday>>("Session.all_holidays", json::array(), [this] {
         std::vector<Holiday> all_ho;
 
         using FieldValue = std::variant<str, int>;
@@ -427,7 +446,7 @@ std::vector<Holiday> Session::all_holidays() {
 }
 
 std::vector<SchoolYear> Session::all_schoolyears() {
-    return cached_call<std::vector<SchoolYear> >("Session.all_schoolyears", json::array(), [this] {
+    return cached_call<std::vector<SchoolYear>>("Session.all_schoolyears", json::array(), [this] {
         std::vector<SchoolYear> all_sy;
 
         using FieldValue = std::variant<str, int>;
@@ -468,9 +487,9 @@ SchoolYear Session::return_current_year() {
     throw std::runtime_error("Session::return_current_year is not implemented yet.");
 }
 
-Class Session::get_klasse_by_name(const str &name) {
-    return cached_call<Class>("Session.get_klasse_by_name", json::array({name}), [this, &name] {
-        for (const auto &k: all_klassen()) {
+Class Session::get_klasse_by_name(const str &name, const std::optional<int> schoolyear_id) {
+    return cached_call<Class>("Session.get_klasse_by_name", json::array({name, schoolyear_id.has_value() ? json(*schoolyear_id) : json(nullptr)}), [this, &name, schoolyear_id] {
+        for (const auto &k: all_klassen(schoolyear_id)) {
             if (k.name == name) {
                 return k;
             }
@@ -526,7 +545,7 @@ std::optional<double> Session::cache_file_last_changed() const {
     return cache.cache_file_last_changed();
 }
 
-TimeTable Session::parse_timetable(const json &raw_result) {
+TimeTable Session::parse_timetable(const json &raw_result, const std::optional<int> schoolyear_id) {
     if (!raw_result.is_array()) {
         return TimeTable({});
     }
@@ -539,7 +558,7 @@ TimeTable Session::parse_timetable(const json &raw_result) {
         all_su[s.entity_id] = SessionCacheJson<Subject>::encode(s);
     }
 
-    for (const auto &k: all_klassen()) {
+    for (const auto &k: all_klassen(schoolyear_id)) {
         all_kl[k.entity_id] = SessionCacheJson<Class>::encode(k);
     }
 
@@ -623,8 +642,9 @@ TimeTable Session::parse_timetable(const json &raw_result) {
     return TimeTable(periods);
 }
 
-TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start,
-                                      const date &end) {
+TimeTable Session::timetable_extended(
+    const std::variant<Class, Room, Teacher> &element, const date &start,
+    const date &end, const std::optional<int> schoolyear_id) {
     std::map<str, int> element_type_table = {
             {"klasse", 1}, {"teacher", 2}, {"subject", 3}, {"room", 4}, {"student", 5}};
     int element_type = 0;
@@ -653,8 +673,13 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
 
     return cached_call<TimeTable>(
             "Session.timetable_extended",
-            json::array({format_date(start), format_date(end), {{"id", entity_id}, {"type", element_type}}}),
-            [this, options] {
+            json::array({
+                format_date(start),
+                format_date(end),
+                {{"id", entity_id}, {"type", element_type}},
+                schoolyear_id.has_value() ? json(*schoolyear_id) : json(nullptr)
+            }),
+            [this, options, schoolyear_id] {
                 json raw_result;
 
                 try {
@@ -664,7 +689,7 @@ TimeTable Session::timetable_extended(const std::variant<Class, Room, Teacher> &
                     return TimeTable({});
                 }
 
-                return parse_timetable(raw_result);
+                return parse_timetable(raw_result, schoolyear_id);
             });
 }
 
@@ -696,7 +721,7 @@ json Session::substitutions(const date &start, const date &end, const int depart
 }
 
 [[nodiscard]] std::vector<str> Session::timegrid_units() {
-    return cached_call<std::vector<str> >("Session.timegrid_units", json::array(), [this] {
+    return cached_call<std::vector<str>>("Session.timegrid_units", json::array(), [this] {
         json raw_json = rpc_request("getTimegridUnits", {});
 
         auto get_optional_int = [](const json &obj, const char *key) -> std::optional<int> {
@@ -805,7 +830,7 @@ json Session::class_reg_category_groups() {
     });
 }
 
-[[nodiscard]] TimeTable Session::my_timetable(const date &start, const date &end) {
+[[nodiscard]] TimeTable Session::my_timetable(const date &start, const date &end, const std::optional<int> schoolyear_id) {
     if (!my_person_id.has_value() || !my_person_type.has_value()) {
         throw std::runtime_error("Person ID or Type not available. Are you logged in?");
     }
@@ -821,8 +846,13 @@ json Session::class_reg_category_groups() {
 
     return cached_call<TimeTable>(
             "Session.my_timetable",
-            json::array({format_date(start), format_date(end), {{"id", *my_person_id}, {"type", *my_person_type}}}),
-            [this, options] {
+            json::array({
+                format_date(start),
+                format_date(end),
+                {{"id", *my_person_id}, {"type", *my_person_type}},
+                schoolyear_id.has_value() ? json(*schoolyear_id) : json(nullptr)
+            }),
+            [this, options, schoolyear_id] {
                 json raw_result;
 
                 try {
@@ -832,7 +862,7 @@ json Session::class_reg_category_groups() {
                     return TimeTable({});
                 }
 
-                return parse_timetable(raw_result);
+                return parse_timetable(raw_result, schoolyear_id);
             });
 }
 
@@ -844,7 +874,7 @@ json Session::_search(const str &surname, const str &fore_name, const int dob, c
             });
 }
 
-std::map<str, std::variant<str, int, json> > Session::get_student(const str &surname, const str &fore_name,
+std::map<str, std::variant<str, int, json>> Session::get_student(const str &surname, const str &fore_name,
                                                                   const int dob) {
     json id_val = _search(surname, fore_name, dob, 5);
     if (id_val.empty()) {
@@ -860,7 +890,7 @@ std::map<str, std::variant<str, int, json> > Session::get_student(const str &sur
                     {"foreName", FieldValue{fore_name}}};
 }
 
-std::map<str, std::variant<str, int, json> > Session::get_teacher_from_search(const str &surname, const str &fore_name,
+std::map<str, std::variant<str, int, json>> Session::get_teacher_from_search(const str &surname, const str &fore_name,
                                                                               const int dob) {
     json id_val = _search(surname, fore_name, dob, 2);
     if (id_val.empty()) {
@@ -879,19 +909,19 @@ std::map<str, std::variant<str, int, json> > Session::get_teacher_from_search(co
 
 void Session::multithread_worker(
         std::map<str, TimeTable> &raw_result,
-        std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
+        std::optional<std::tuple<str, std::exception>> &error_result, std::mutex &raw_result_lock,
         const Class &klasse, date start, date end, str function_name, const uuid &call_id,
-        int max_attempts) {
+        int max_attempts, const std::optional<int> schoolyear_id) {
     max_attempts = max_attempts > 1 ? max_attempts : 1;
 
-    std::optional<std::map<str, TimeTable> > entry = std::nullopt;
-    std::optional<std::tuple<str, std::exception> > error_entry = std::nullopt;
+    std::optional<std::map<str, TimeTable>> entry = std::nullopt;
+    std::optional<std::tuple<str, std::exception>> error_entry = std::nullopt;
 
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         try {
             log_in(call_id);
 
-            TimeTable table = timetable_extended(klasse, start, end);
+            TimeTable table = timetable_extended(klasse, start, end, schoolyear_id);
 
             entry = {{klasse.name, table}};
             error_entry = std::nullopt;
@@ -926,17 +956,17 @@ void Session::multithread_worker(
     }
 }
 
-std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session::multithreading_result(
+std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable>> Session::multithreading_result(
         float sleep_time, int max_threads, date start, date end, const str &function_name,
-        bool logging, const uuid &call_id, bool log_out_afterwards, int max_attempts) {
+        bool logging, const uuid &call_id, bool log_out_afterwards, int max_attempts, const std::optional<int> schoolyear_id) {
     std::map<str, TimeTable> raw_result;
-    std::optional<std::tuple<str, std::exception> > error_result;
+    std::optional<std::tuple<str, std::exception>> error_result;
     std::mutex raw_result_lock;
 
     std::vector<Class> viable_klassen;
     std::vector<std::thread> threads;
 
-    for (const auto &klasse: all_klassen()) {
+    for (const auto &klasse: all_klassen(schoolyear_id)) {
         if (klasse.name.length() == 2 && !klasse.name.starts_with("M")) {
             viable_klassen.push_back(klasse);
         }
@@ -968,8 +998,9 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
                         end,
                         function_name,
                         call_id,
-                        max_attempts
-                        );
+                        max_attempts,
+                        schoolyear_id
+                );
             }
 
             for (size_t j = i; j < batch_end; ++j) {
@@ -1031,8 +1062,9 @@ std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > Session
                     end,
                     function_name,
                     call_id,
-                    max_attempts
-                    );
+                    max_attempts,
+                    schoolyear_id
+            );
         }
 
         for (auto &thread: threads) {

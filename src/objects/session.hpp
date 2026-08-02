@@ -24,7 +24,7 @@ struct SessionCacheJson {
 };
 
 template<typename T>
-struct SessionCacheJson<std::vector<T> > {
+struct SessionCacheJson<std::vector<T>> {
     static json encode(const std::vector<T> &values) {
         json result = json::array();
 
@@ -122,6 +122,8 @@ public:
     str client;
     Logger my_logger;
 
+    std::atomic<std::uint64_t> next_id { 0 };
+
     Session(str session_name, bool use_cache, std::optional<str> cache_file, const std::optional<Logger> &logger,
             str username,
             str password, str server, str school, str client);
@@ -129,6 +131,8 @@ public:
     ~Session() = default;
 
     static uuid get_unique_uuid();
+
+    [[nodiscard]] std::uint64_t make_rpc_request_id();
 
     json rpc_request(const str &method, const json &params, bool retry_on_authentication_error = true);
 
@@ -144,7 +148,7 @@ public:
 
     void log_out(const uuid &unique_id);
 
-    [[nodiscard]] std::vector<Class> all_klassen();
+    [[nodiscard]] std::vector<Class> all_klassen(std::optional<int> schoolyear_id = std::nullopt);
 
     [[nodiscard]] std::vector<Room> all_rooms();
 
@@ -158,7 +162,7 @@ public:
 
     [[nodiscard]] SchoolYear return_current_year();
 
-    [[nodiscard]] Class get_klasse_by_name(const str &name);
+    [[nodiscard]] Class get_klasse_by_name(const str &name, std::optional<int> schoolyear_id = std::nullopt);
 
     [[nodiscard]] Room get_room_by_name(const str &name);
 
@@ -166,7 +170,7 @@ public:
 
     Teacher get_teacher_by_long_name(const str &name);
 
-    TimeTable timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start, const date &end);
+    TimeTable timetable_extended(const std::variant<Class, Room, Teacher> &element, const date &start, const date &end, std::optional<int> schoolyear_id = std::nullopt);
 
     json teachers();
 
@@ -194,21 +198,24 @@ public:
 
     json class_reg_category_groups();
 
-    [[nodiscard]] TimeTable my_timetable(const date &start, const date &end);
+    [[nodiscard]] TimeTable my_timetable(const date &start, const date &end, std::optional<int> schoolyear_id = std::nullopt);
 
     json _search(const str &surname, const str &fore_name, int dob = 0, int what = -1);
 
-    std::map<str, std::variant<str, int, json> > get_student(
-            const str &surname, const str &fore_name, int dob = 0);
+    std::map<str, std::variant<str, int, json>> get_student(
+        const str &surname, const str &fore_name, int dob = 0);
 
-    std::map<str, std::variant<str, int, json> > get_teacher_from_search(
-            const str &surname, const str &fore_name,
-            int dob = 0);
+    std::map<str, std::variant<str, int, json>> get_teacher_from_search(
+        const str &surname, const str &fore_name,
+        int dob = 0);
 
-    [[nodiscard]] std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable> > multithreading_result(
-            float sleep_time, int max_threads, date start, date end, const str &function_name,
-            bool logging, const uuid &call_id, bool log_out_afterwards, int max_attempts
-            );
+    [[nodiscard]] std::variant<std::tuple<str, std::exception>, std::map<str, TimeTable>> multithreading_result(
+        float sleep_time, int max_threads,
+        date start, date end,
+        const str &function_name, bool logging, const uuid &call_id,
+        bool log_out_afterwards, int max_attempts,
+        std::optional<int> schoolyear_id = std::nullopt
+    );
 
     // Expose cache functions (from private cache member)
     void read_cache_from_file();
@@ -251,14 +258,21 @@ private:
         return value;
     }
 
-    [[nodiscard]] TimeTable parse_timetable(const json &raw_result);
+    [[nodiscard]] TimeTable parse_timetable(const json &raw_result, std::optional<int> schoolyear_id = std::nullopt);
 
     void multithread_worker(
-            std::map<str, TimeTable> &raw_result,
-            std::optional<std::tuple<str, std::exception> > &error_result, std::mutex &raw_result_lock,
-            const Class &klasse, date start, date end, str function_name, const uuid &call_id,
-            int max_attempts);
+        std::map<str, TimeTable> &raw_result,
+        std::optional<std::tuple<str, std::exception>> &error_result,
+        std::mutex &raw_result_lock,
+        const Class &klasse,
+        date start, date end,
+        str function_name, const uuid &call_id,
+        int max_attempts,
+        std::optional<int> schoolyear_id = std::nullopt
+    );
 
-    json rpc_request_with_session(cpr::Session &http, const str &method, const json &params,
-                                  bool retry_on_authentication_error = true);
+    json rpc_request_with_session(
+        cpr::Session &http, const str &method, const json &params,
+        bool retry_on_authentication_error = true
+    );
 };
