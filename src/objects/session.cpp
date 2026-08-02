@@ -3,10 +3,45 @@
 #include <iostream>
 #include <random>
 #include <stdexcept>
+#include <thread>
 
 #include "exceptions.hpp"
 
 namespace {
+    constexpr int HTTP_ATTEMPTS = 3;
+
+    json post_json_with_retries(const std::function<cpr::Response()> &post, const str &operation) {
+        str last_failure;
+
+        for (int attempt = 0; attempt < HTTP_ATTEMPTS; ++attempt) {
+            cpr::Response response = post();
+
+            if (response.error.code != cpr::ErrorCode::OK) {
+                last_failure = std::format("transport error: {}", response.error.message);
+            } else if (response.status_code >= 400 && response.status_code != 429 && response.status_code < 500) {
+                throw std::runtime_error(std::format("{} failed with HTTP {}", operation, response.status_code));
+            } else if (response.status_code == 429 || response.status_code >= 500) {
+                last_failure = std::format("HTTP {}", response.status_code);
+            } else if (response.text.empty()) {
+                last_failure = std::format("empty response body (HTTP {})", response.status_code);
+            } else {
+                try {
+                    return json::parse(response.text);
+                } catch (const json::parse_error &) {
+                    last_failure = std::format("invalid JSON response (HTTP {})", response.status_code);
+                }
+            }
+
+            if (attempt + 1 < HTTP_ATTEMPTS) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(250 * (attempt + 1)));
+            }
+        }
+
+        throw std::runtime_error(std::format(
+            "{} failed after {} attempts: {}", operation, HTTP_ATTEMPTS, last_failure
+        ));
+    }
+
     json encode_entity(const Base_Entity &value) {
         return {{"name", value.name}, {"longName", value.long_name}, {"id", value.entity_id}};
     }
@@ -251,13 +286,7 @@ json Session::rpc_request_with_session(cpr::Session &http, const str &method, co
 
     http.SetBody(cpr::Body{payload.dump()});
 
-    cpr::Response response = http.Post();
-
-    if (response.status_code >= 400) {
-        throw std::runtime_error(std::format("HTTP error {}", response.status_code));
-    }
-
-    json data = json::parse(response.text);
+    json data = post_json_with_retries([&http] { return http.Post(); }, method);
 
     if (data.contains("error")) {
         auto error = data["error"];
@@ -333,13 +362,12 @@ void Session::log_in(const uuid &unique_id) {
 
         cpr::Header headers{{"Content-Type", "application/json"}};
 
-        cpr::Response response = cpr::Post(cpr::Url{url}, headers, cpr::Body{payload.dump()});
-
-        if (response.status_code >= 400) {
-            throw std::runtime_error(std::format("HTTP error {}", response.status_code));
-        }
-
-        json data = json::parse(response.text);
+        json data = post_json_with_retries(
+            [&url, &headers, &payload] {
+                return cpr::Post(cpr::Url{url}, headers, cpr::Body{payload.dump()});
+            },
+            "authenticate"
+        );
 
         if (data.contains("error")) {
             auto error = data["error"];
@@ -686,7 +714,7 @@ TimeTable Session::timetable_extended(
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
                     my_logger.log_error("Error in getTimetable: " + str(e.what()));
-                    return TimeTable({});
+                    throw;
                 }
 
                 return parse_timetable(raw_result, schoolyear_id);
@@ -859,7 +887,7 @@ json Session::class_reg_category_groups() {
                     raw_result = rpc_request("getTimetable", {{"options", options}});
                 } catch (const std::exception &e) {
                     my_logger.log_error("Error in getTimetable: " + str(e.what()));
-                    return TimeTable({});
+                    throw;
                 }
 
                 return parse_timetable(raw_result, schoolyear_id);
