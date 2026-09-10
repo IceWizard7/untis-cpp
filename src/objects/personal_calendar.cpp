@@ -95,7 +95,7 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
     const auto pixels = [pixels_per_minute](day_time time) { return time.count() / 60.0 * pixels_per_minute; };
     const double height = pixels(axis_end - axis_start);
     const str title = (Config::LanguageConfig::personal_timetable.empty() ? "Personal Timetable" :
-                       Config::LanguageConfig::personal_timetable) + " V2 · " + person_name;
+                       Config::LanguageConfig::personal_timetable) + " " + person_name;
     str html = "<!doctype html><html><head><meta charset=\"utf-8\">"
                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>" +
                escape_html(title) + R"(</title><style>
