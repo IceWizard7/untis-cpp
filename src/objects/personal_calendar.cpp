@@ -1,14 +1,15 @@
-#include "time_table.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <set>
 #include <stdexcept>
+
 #include "config.hpp"
+#include "time_table.hpp"
 #include "utils/date_utils.hpp"
 
 namespace {
-    str escape_html(const str &value) {
+    str escape_html(const str& value) {
         str escaped;
         for (const char c : value) {
             switch (c) {
@@ -47,7 +48,15 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
     std::vector<str> colors;
     std::vector<str> tints;
     std::vector<str> statuses;
+    std::set<std::tuple<str, str, str, datetime, datetime, str, bool, bool>> seen_lessons;
     for (const auto &period : periods) {
+        const auto [code, changed] = period.get_period_code(featuring_object);
+        // Shared lessons can arrive once per class. Ignore class membership and
+        // period IDs, while keeping different times, teachers, rooms and statuses.
+        const auto lesson_key = std::make_tuple(period.subjects_str(), period.teacher_str(false),
+                                                period.room_str(false), period.start, period.end,
+                                                code, changed.first, changed.second);
+        if (!seen_lessons.insert(lesson_key).second) continue;
         const auto [title, row2, row3, start, end] = period.formatted_list(featuring_object, false);
         events.push_back({title, start, end, row2, row3});
         auto color = Config::TimeTableMappingConfig::default_subject_color;
@@ -61,7 +70,6 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
         // A light tint keeps black text readable even for very dark subject colours.
         const auto tint = [](int channel) { return 224 + std::clamp(channel, 0, 255) * 31 / 255; };
         tints.push_back(std::format("rgb({},{},{})", tint(r), tint(g), tint(b)));
-        const auto [code, changed] = period.get_period_code(featuring_object);
         statuses.push_back(code == "missed" ? " cancelled" : code == "extra" ? " extra" :
                            changed.first || changed.second ? " changed" : "");
     }
@@ -72,11 +80,6 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
         statuses.emplace_back(" external");
     }
     const auto placements = Calendar::layout(events, target_date, n_days);
-    std::vector<size_t> numbers(events.size(), 0);
-    size_t next_number = 1;
-    for (const auto &p : placements) {
-        if (numbers[p.event_index] == 0) numbers[p.event_index] = next_number++;
-    }
     day_time axis_start = std::chrono::hours{8};
     day_time axis_end = std::chrono::hours{19};
     if (!placements.empty()) {
@@ -99,7 +102,6 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
 *{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#182537;font:14px/1.4 system-ui,sans-serif}
 main{max-width:1500px;margin:auto;padding:24px}h1{font-size:22px;margin:0}nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0 22px}
 nav a{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;background:white;border:1px solid #ccd4de;border-radius:6px;padding:7px 12px;color:#203c62;text-decoration:none}
-.calendar-range{margin-left:auto;font-variant-numeric:tabular-nums;color:#46566d}
 .day-choice,.day-tab{display:none}
 .calendar-scroll{overflow:auto;max-height:min(72vh,900px);max-height:min(72svh,900px);border:1px solid #d7dee7;border-radius:8px;isolation:isolate;scroll-padding-top:66px}
 .calendar-scroll:focus-visible{outline:3px solid #3875a9;outline-offset:2px}.calendar-grid{display:grid;grid-template-columns:68px var(--days);min-width:100%;width:max-content;background:white;padding-bottom:12px}
@@ -109,18 +111,18 @@ nav a{min-width:44px;min-height:44px;display:inline-flex;align-items:center;just
 .tick{position:absolute;right:10px;transform:translateY(-50%);font-size:11px;color:#53647b;font-variant-numeric:tabular-nums}.tick:first-child{transform:none}.tick:last-child{transform:translateY(-100%)}
 .grid-line{position:absolute;left:0;right:0;border-top:1px solid #e5eaf0;pointer-events:none}.grid-line.half{border-top:1px dotted #edf0f5}
 .calendar-event{position:absolute;display:block;overflow:hidden;border-radius:4px;background:var(--event-tint);box-shadow:inset 5px 0 var(--event-color),inset 0 0 0 1px #9baabe;color:#182537;text-decoration:none}
-.event-text{display:block;padding:5px 9px}.event-title,.event-time,.event-detail{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.event-title{font-weight:650}.event-time{font-size:11px;font-variant-numeric:tabular-nums}.event-detail{font-size:12px;color:#46566d}
-.calendar-event.compact .event-text{padding:0 6px;font-size:11px;line-height:16px}.calendar-event.compact .event-time,.calendar-event.compact .event-detail{display:none}.calendar-event.tiny .event-text{visibility:hidden}
-.calendar-event.cancelled,.event-list li.cancelled{background:#fff0f0;color:#a52626}.cancelled .event-title,.event-list li.cancelled strong{text-decoration:line-through}.calendar-event.extra,.event-list li.extra{background:#eaf7ee}.calendar-event.changed,.event-list li.changed{background:#fff7df}
-a:focus-visible{outline:3px solid #132f62;outline-offset:2px;z-index:5}.event-list{margin-top:12px}.event-list h2{font-size:17px}.event-list ol{padding-left:30px}.event-list li{padding:8px 12px;margin-bottom:6px;border-left:5px solid var(--event-color);background:var(--event-tint);border-bottom:1px solid #d7dee7;overflow-wrap:anywhere}.event-list li:target{background:#fff1bd}.event-list time{font-variant-numeric:tabular-nums}.event-list p{margin:3px 0;white-space:pre-wrap;color:#46566d}
+.event-text{display:block;padding:5px 9px}.event-title,.event-detail{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.event-title{font-weight:650}.event-detail{font-size:12px;color:#46566d}
+.calendar-event.compact .event-text{padding:0 6px;font-size:11px;line-height:16px}.calendar-event.compact .event-detail{display:none}.calendar-event.tiny .event-text{visibility:hidden}
+.calendar-event.cancelled{background:#fff0f0;color:#a52626}.cancelled .event-title{text-decoration:line-through}.calendar-event.extra{background:#eaf7ee}.calendar-event.changed{background:#fff7df}
+a:focus-visible,.calendar-event:focus-visible{outline:3px solid #132f62;outline-offset:2px;z-index:5}
 @media screen and (max-width:700px){main{padding:12px}h1{font-size:19px}
 .day-choice{display:block;position:absolute;opacity:0;width:1px;height:1px}
 .day-tab{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;margin:0 6px 10px 0;border:1px solid #bbc8d9;border-radius:6px;background:white;cursor:pointer}
 .day-choice:checked+.day-tab{background:#203c62;color:white;border-color:#203c62}
 .day-choice:focus-visible+.day-tab{outline:3px solid #3875a9;outline-offset:2px}
-.calendar-grid{grid-template-columns:56px var(--mobile-days,var(--days))}.event-text{padding-left:8px}.event-title{font-size:12px}.calendar-range{font-size:12px}}
+.calendar-grid{grid-template-columns:56px var(--mobile-days,var(--days))}.event-text{padding-left:8px}.event-title{font-size:12px}}
 
-@media print{body{background:white}nav{display:none}main{padding:0;max-width:none}.calendar-scroll{overflow:visible;max-height:none}.day-heading,.time-axis{position:relative!important}.calendar-grid{print-color-adjust:exact;-webkit-print-color-adjust:exact}.event-list li{break-inside:avoid}}
+@media print{body{background:white}nav{display:none}main{padding:0;max-width:none}.calendar-scroll{overflow:visible;max-height:none}.day-heading,.time-axis{position:relative!important}.calendar-grid{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 )";
     // CSS-only day selection: native radio controls also work without JavaScript.
     html += "@media screen and (max-width:700px){";
@@ -139,7 +141,7 @@ a:focus-visible{outline:3px solid #132f62;outline-offset:2px;z-index:5}.event-li
     html += nav_link(Date_Utils::add_days(target_date, -n_days), "←");
     html += nav_link(Date_Utils::get_today(), Config::LanguageConfig::today.empty() ? "Today" : Config::LanguageConfig::today);
     html += nav_link(Date_Utils::add_days(target_date, n_days), "→");
-    html += "<span class=\"calendar-range\">" + clock_label(axis_start) + "–" + clock_label(axis_end) + "</span></nav>";
+    html += "</nav>";
     for (int day = 0; day < n_days; ++day) {
         const auto d = Date_Utils::add_days(target_date, day);
         const auto label = weekday_label(d) + " " + Date_Utils::date_to_str(d, "%d.%m.%Y");
@@ -182,31 +184,19 @@ a:focus-visible{outline:3px solid #132f62;outline-offset:2px;z-index:5}.event-li
             const auto times = clock_label(p.start) + "–" + clock_label(p.end);
             const auto text = times + " · " + event.title + " · " + event.location + " · " + event.description;
             html += std::format(
-                "<a class=\"calendar-event{}{}\" href=\"#event-{}\" title=\"{}\" aria-label=\"{}\" "
+                "<div class=\"calendar-event{}{}\" tabindex=\"0\" role=\"group\" title=\"{}\" aria-label=\"{}\" "
                 "data-event=\"{}\" data-start=\"{}\" data-end=\"{}\" data-column=\"{}\" data-columns=\"{}\" "
                 "style=\"top:{:.3f}px;height:{:.3f}px;left:calc({:.6f}% + 3px);width:calc({:.6f}% - 6px);--event-color:{};--event-tint:{}\">"
-                "<span class=\"event-text\"><span class=\"event-title\">{}. {}</span><span class=\"event-time\">{}</span>"
-                "<span class=\"event-detail\">{}</span><span class=\"event-detail\">{}</span></span></a>",
+                "<span class=\"event-text\"><span class=\"event-title\">{}</span>"
+                "<span class=\"event-detail\">{}</span><span class=\"event-detail\">{}</span></span></div>",
                 statuses[p.event_index], event_height < 18 ? " tiny" : event_height < 54 ? " compact" : "",
-                p.event_index, escape_html(text), escape_html(text), p.event_index, p.start.count(), p.end.count(),
+                escape_html(text), escape_html(text), p.event_index, p.start.count(), p.end.count(),
                 p.column, p.columns, pixels(p.start - axis_start), event_height, 100.0 * p.column / p.columns,
-                100.0 / p.columns, colors[p.event_index], tints[p.event_index], numbers[p.event_index], escape_html(event.title),
-                times, escape_html(event.location), escape_html(event.description));
+                100.0 / p.columns, colors[p.event_index], tints[p.event_index], escape_html(event.title),
+                escape_html(event.location), escape_html(event.description));
         }
         html += "</div>";
     }
-    html += "</div></div><section class=\"event-list\"><h2>Details</h2><ol>";
-    std::vector<bool> listed(events.size(), false);
-    for (const auto &p : placements) {
-        if (listed[p.event_index]) continue;
-        listed[p.event_index] = true;
-        const auto &event = events[p.event_index];
-        html += std::format("<li class=\"event-info{}\" id=\"event-{}\" value=\"{}\" style=\"--event-color:{};--event-tint:{}\"><strong>{}</strong><br><time>{} – {}</time>"
-                            "<p>{}</p><p>{}</p></li>", statuses[p.event_index], p.event_index, numbers[p.event_index], colors[p.event_index], tints[p.event_index], escape_html(event.title),
-                            Date_Utils::datetime_to_str(event.start, "%d.%m.%Y %H:%M:%S"),
-                            Date_Utils::datetime_to_str(event.end, "%d.%m.%Y %H:%M:%S"),
-                            escape_html(event.location), escape_html(event.description));
-    }
-    html += "</ol></section></main></body></html>";
+    html += "</div></div></main></body></html>";
     return html;
 }
