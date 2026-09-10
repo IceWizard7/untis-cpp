@@ -35,6 +35,8 @@ add_library(Untis STATIC
         src/objects/period.cpp
         src/objects/session.cpp
         src/objects/time_table.cpp
+        src/objects/calendar.cpp
+        src/objects/personal_calendar.cpp
 )
 
 # Public headers for consumers

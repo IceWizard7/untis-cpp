@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "config.hpp"
+#include "utils/html_capture.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -305,6 +306,8 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
     const int vp_h = static_cast<int>(std::round(height_mm * px_per_mm));
     set_device_metrics(vp_w, vp_h, scale);
 
+    const auto capture_html = Render_Utils::prepare_html_for_capture(html);
+
     page_loaded_ = false;
     if (!ws_.send(msg("\"method\":\"Page.setDocumentContent\",\"params\":{"
                       "\"frameId\":\"" +
@@ -312,7 +315,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
                       "\","
                       "\"html\":\"" +
 
-                      escape_for_json(html) + "\"}")).success
+                      escape_for_json(capture_html) + "\"}")).success
     ) {
         ready_ = false;
         throw std::runtime_error("Failed to send Page.setDocumentContent to Chromium");

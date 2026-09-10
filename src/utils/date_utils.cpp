@@ -1,8 +1,23 @@
 #include "date_utils.hpp"
 
 #include <iomanip>
+#include <ctime>
+#include <sstream>
+#include <stdexcept>
 
 namespace Date_Utils {
+    namespace {
+        std::tm calendar_tm(const date &d) {
+            if (!d.ok()) throw std::invalid_argument("Invalid calendar date");
+            std::tm tm{};
+            tm.tm_year = static_cast<int>(d.year()) - 1900;
+            tm.tm_mon = static_cast<unsigned>(d.month()) - 1;
+            tm.tm_mday = static_cast<unsigned>(d.day());
+            tm.tm_wday = std::chrono::weekday{std::chrono::sys_days{d}}.c_encoding();
+            tm.tm_yday = static_cast<int>((std::chrono::sys_days{d} - std::chrono::sys_days{d.year()/1/1}).count());
+            return tm;
+        }
+    }
     day_time datetime_to_time(const datetime date_time) {
         return std::chrono::seconds{date_time - std::chrono::floor<std::chrono::days>(date_time)};
     }
@@ -12,9 +27,11 @@ namespace Date_Utils {
     }
 
     str datetime_to_str(const datetime &tp, const str &format) {
-        const auto t = std::chrono::system_clock::to_time_t(tp);
-
-        const std::tm tm = *std::localtime(&t);
+        auto tm = calendar_tm(datetime_to_date(tp));
+        const auto time = std::chrono::hh_mm_ss{datetime_to_time(tp)};
+        tm.tm_hour = static_cast<int>(time.hours().count());
+        tm.tm_min = static_cast<int>(time.minutes().count());
+        tm.tm_sec = static_cast<int>(time.seconds().count());
 
         std::ostringstream oss;
         oss << std::put_time(&tm, format.c_str());
@@ -23,12 +40,7 @@ namespace Date_Utils {
     }
 
     str date_to_str(const date &d, const str &format) {
-        // Convert year_month_day -> sys_days -> time_point
-        const std::chrono::sys_days sd{d};
-
-        const std::time_t t = std::chrono::system_clock::to_time_t(sd);
-
-        const std::tm tm = *std::localtime(&t);
+        const auto tm = calendar_tm(d);
 
         std::ostringstream oss;
         oss << std::put_time(&tm, format.c_str());
@@ -57,7 +69,16 @@ namespace Date_Utils {
     }
 
     date get_today() {
-        return std::chrono::year_month_day{std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())};
+        const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::tm local{};
+#ifdef _WIN32
+        localtime_s(&local, &now);
+#else
+        localtime_r(&now, &local);
+#endif
+        return std::chrono::year{local.tm_year + 1900} /
+               std::chrono::month{static_cast<unsigned>(local.tm_mon + 1)} /
+               std::chrono::day{static_cast<unsigned>(local.tm_mday)};
     }
 
     date str_to_date(const str &s, const str &format) {

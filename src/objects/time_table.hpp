@@ -5,6 +5,7 @@
 #include <semaphore>
 #include <vector>
 #include "period.hpp"
+#include "calendar.hpp"
 
 class TimeTable {
     std::vector<Period> periods;
@@ -92,6 +93,14 @@ public:
     [[nodiscard]] str to_personal_html(
             const std::variant<Class, Room, Teacher> &featuring_object, date target_date,
             const str &person_name, int n_days = 1
+            ) const;
+
+    // A continuous local-time calendar, independent of lesson_time_ranges.
+    // External events are combined with this table's periods without mutation.
+    [[nodiscard]] str to_personal_html_v2(
+            const std::variant<Class, Room, Teacher> &featuring_object, date target_date,
+            const str &person_name, int n_days = 1,
+            const std::vector<CalendarEvent> &external_events = {}, double pixels_per_minute = 2.0
             ) const;
 
     [[nodiscard]] str to_regular_html(
