@@ -99,62 +99,69 @@ str TimeTable::to_personal_html_v2(const std::variant<Class, Room, Teacher> &fea
     str html = "<!doctype html><html><head><meta charset=\"utf-8\">"
                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>" +
                escape_html(title) + R"(</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#182537;font:14px/1.4 system-ui,sans-serif}
-main{max-width:1500px;margin:auto;padding:24px}h1{font-size:22px;margin:0}nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0 22px}
-nav a{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;background:white;border:1px solid #ccd4de;border-radius:6px;padding:7px 12px;color:#203c62;text-decoration:none}
-.day-choice,.day-tab{display:none}
-.calendar-scroll{overflow:auto;max-height:min(72vh,900px);max-height:min(72svh,900px);border:1px solid #d7dee7;border-radius:8px;isolation:isolate;scroll-padding-top:66px}
-.calendar-scroll:focus-visible{outline:3px solid #3875a9;outline-offset:2px}.calendar-grid{display:grid;grid-template-columns:68px var(--days);min-width:100%;width:max-content;background:white;padding-bottom:12px}
-.day-heading{position:sticky;top:0;z-index:4;background:#f6f8fc;min-height:62px;padding:12px 8px;text-align:center;font-weight:650;border-bottom:1px solid #d7dee7}.day-heading.today{background:#e5edff}.day-heading small{display:block;font-weight:400;color:#53647b}
+*{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#182537;font:12px/1.3 system-ui,sans-serif}
+main{max-width:1500px;margin:auto;padding:8px;height:100vh;height:100svh;display:flex;flex-direction:column;gap:6px}
+.calendar-header{display:flex;gap:6px 12px;align-items:center;justify-content:space-between;flex-wrap:wrap;flex-shrink:0}h1{font-size:16px;line-height:1.25;margin:0;overflow-wrap:anywhere}
+nav{display:flex;gap:6px;align-items:center;margin:0}nav a{min-width:30px;min-height:30px;display:inline-flex;align-items:center;justify-content:center;background:white;border:1px solid #ccd4de;border-radius:5px;padding:3px 8px;color:#203c62;text-decoration:none}
+.day-choice,.calendar-tabs{display:none}
+.calendar-scroll{overflow:auto;min-height:0;flex:1;border:1px solid #d7dee7;border-radius:6px;isolation:isolate;scroll-padding-top:40px}
+.calendar-scroll:focus-visible{outline:3px solid #3875a9;outline-offset:2px}.calendar-grid{display:grid;grid-template-columns:52px var(--days);min-width:100%;width:max-content;background:white;padding-bottom:6px}
+.day-heading{position:sticky;top:0;z-index:4;background:#f6f8fc;min-height:38px;padding:4px 6px;text-align:center;font-weight:650;border-bottom:1px solid #d7dee7}.day-heading.today{background:#e5edff}.day-heading small{display:block;font-size:10px;font-weight:400;color:#53647b}
 .time-heading{left:0;z-index:6}.time-axis{position:sticky!important;left:0;z-index:3;background:white;border-right:1px solid #d7dee7}
 .time-axis,.calendar-day{position:relative;height:var(--height)}.calendar-day{border-left:1px solid #d7dee7;isolation:isolate}
-.tick{position:absolute;right:10px;transform:translateY(-50%);font-size:11px;color:#53647b;font-variant-numeric:tabular-nums}.tick:first-child{transform:none}.tick:last-child{transform:translateY(-100%)}
+.tick{position:absolute;right:6px;transform:translateY(-50%);font-size:10px;color:#53647b;font-variant-numeric:tabular-nums}.tick:first-child{transform:none}.tick:last-child{transform:translateY(-100%)}
 .grid-line{position:absolute;left:0;right:0;border-top:1px solid #e5eaf0;pointer-events:none}.grid-line.half{border-top:1px dotted #edf0f5}
 .calendar-event{position:absolute;display:block;overflow:hidden;border-radius:4px;background:var(--event-tint);box-shadow:inset 5px 0 var(--event-color),inset 0 0 0 1px #9baabe;color:#182537;text-decoration:none}
-.event-text{display:block;padding:5px 9px}.event-title,.event-detail{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.event-title{font-weight:650}.event-detail{font-size:12px;color:#46566d}
+.event-text{display:block;padding:3px 8px}.event-title,.event-detail{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.event-title{font-weight:650}.event-detail{font-size:10px;color:#46566d}
 .calendar-event.compact .event-text{padding:0 6px;font-size:11px;line-height:16px}.calendar-event.compact .event-detail{display:none}.calendar-event.tiny .event-text{visibility:hidden}
 .calendar-event.cancelled{background:#fff0f0;color:#a52626}.cancelled .event-title{text-decoration:line-through}.calendar-event.extra{background:#eaf7ee}.calendar-event.changed{background:#fff7df}
 a:focus-visible,.calendar-event:focus-visible{outline:3px solid #132f62;outline-offset:2px;z-index:5}
-@media screen and (max-width:700px){main{padding:12px}h1{font-size:19px}
+@media screen and (max-width:700px){main{padding:6px}h1{font-size:14px}
 .day-choice{display:block;position:absolute;opacity:0;width:1px;height:1px}
-.day-tab{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;margin:0 6px 10px 0;border:1px solid #bbc8d9;border-radius:6px;background:white;cursor:pointer}
-.day-choice:checked+.day-tab{background:#203c62;color:white;border-color:#203c62}
-.day-choice:focus-visible+.day-tab{outline:3px solid #3875a9;outline-offset:2px}
-.calendar-grid{grid-template-columns:56px var(--mobile-days,var(--days))}.event-text{padding-left:8px}.event-title{font-size:12px}}
+.calendar-tabs{display:flex;gap:4px;flex-shrink:0;overflow-x:auto;padding:3px}
+.day-tab{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-height:28px;padding:3px 7px;border:1px solid #bbc8d9;border-radius:5px;background:white;cursor:pointer}
+.calendar-grid{grid-template-columns:46px var(--mobile-days,var(--days))}}
 
-@media print{body{background:white}nav{display:none}main{padding:0;max-width:none}.calendar-scroll{overflow:visible;max-height:none}.day-heading,.time-axis{position:relative!important}.calendar-grid{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+@media print{body{background:white}nav{display:none}main{padding:0;max-width:none;height:auto;display:block}.calendar-scroll{overflow:visible;max-height:none}.day-heading,.time-axis{position:relative!important}.calendar-grid{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 )";
     // CSS-only day selection: native radio controls also work without JavaScript.
     html += "@media screen and (max-width:700px){";
     for (int day = 0; day < n_days; ++day) {
         html += std::format(
+            "#calendar-choice-{}:checked~.calendar-tabs label[for='calendar-choice-{}']{{background:#203c62;color:white;border-color:#203c62}}"
+            "#calendar-choice-{}:focus-visible~.calendar-tabs label[for='calendar-choice-{}']{{outline:3px solid #3875a9;outline-offset:2px}}"
             "#calendar-choice-{}:checked~.calendar-scroll .calendar-day:not([data-day='{}']),"
             "#calendar-choice-{}:checked~.calendar-scroll .day-heading:not(.time-heading):not([data-day='{}']){{display:none}}"
             "#calendar-choice-{}:checked~.calendar-scroll .calendar-grid{{--mobile-days:minmax({}px,1fr)}}",
-            day, day, day, day, day, std::max(size_t{220}, day_columns[day] * (day_columns[day] <= 3 ? 84 : 132)));
+            day, day, day, day, day, day, day, day, day, std::max(size_t{200}, day_columns[day] * (day_columns[day] <= 3 ? 84 : 120)));
     }
     html += "}</style></head><body><main>";
-    html += "<h1>" + escape_html(title) + "</h1><nav>";
+    html += "<header class=\"calendar-header\"><h1>" + escape_html(title) + "</h1><nav>";
     const auto nav_link = [&](date day, const str &label) {
         return "<a href=\"?date=" + Date_Utils::date_to_str(day, "%d-%m-%Y") + "\">" + escape_html(label) + "</a>";
     };
     html += nav_link(Date_Utils::add_days(target_date, -n_days), "←");
     html += nav_link(Date_Utils::get_today(), Config::LanguageConfig::today.empty() ? "Today" : Config::LanguageConfig::today);
     html += nav_link(Date_Utils::add_days(target_date, n_days), "→");
-    html += "</nav>";
+    html += "</nav></header>";
+    for (int day = 0; day < n_days; ++day) {
+        html += std::format("<input class=\"day-choice\" type=\"radio\" name=\"calendar-day\" id=\"calendar-choice-{}\"{}>",
+                            day, day == 0 ? " checked" : "");
+    }
+    html += "<div class=\"calendar-tabs\">";
     for (int day = 0; day < n_days; ++day) {
         const auto d = Date_Utils::add_days(target_date, day);
         const auto label = weekday_label(d) + " " + Date_Utils::date_to_str(d, "%d.%m.%Y");
-        html += std::format("<input class=\"day-choice\" type=\"radio\" name=\"calendar-day\" id=\"calendar-choice-{}\"{}>"
-                            "<label class=\"day-tab\" for=\"calendar-choice-{}\" title=\"{}\">{} {}</label>",
-                            day, day == 0 ? " checked" : "", day, escape_html(label),
+        html += std::format("<label class=\"day-tab\" for=\"calendar-choice-{}\" title=\"{}\">{} {}</label>",
+                            day, escape_html(label),
                             escape_html(weekday_label(d).substr(0, 2)), Date_Utils::date_to_str(d, "%d.%m."));
     }
+    html += "</div>";
     html += "<div class=\"calendar-scroll\" role=\"region\" tabindex=\"0\" aria-label=\"" + escape_html(title) +
             "\"><div class=\"calendar-grid\" data-calendar-view=\"v2\" data-axis-start=\"" + std::to_string(axis_start.count()) +
             "\" data-scale=\"" + std::format("{}", pixels_per_minute) + "\" style=\"--days:";
     for (int day = 0; day < n_days; ++day) {
-        html += std::format("minmax({}px,1fr) ", std::max(size_t{240}, day_columns[day] * 150));
+        html += std::format("minmax({}px,1fr) ", std::max(size_t{200}, day_columns[day] * 120));
     }
     html += std::format(";--height:{:.3f}px\"><div class=\"day-heading time-heading\">{}</div>", height,
                         escape_html(Config::LanguageConfig::time));
@@ -189,7 +196,7 @@ a:focus-visible,.calendar-event:focus-visible{outline:3px solid #132f62;outline-
                 "style=\"top:{:.3f}px;height:{:.3f}px;left:calc({:.6f}% + 3px);width:calc({:.6f}% - 6px);--event-color:{};--event-tint:{}\">"
                 "<span class=\"event-text\"><span class=\"event-title\">{}</span>"
                 "<span class=\"event-detail\">{}</span><span class=\"event-detail\">{}</span></span></div>",
-                statuses[p.event_index], event_height < 18 ? " tiny" : event_height < 54 ? " compact" : "",
+                statuses[p.event_index], event_height < 18 ? " tiny" : event_height < 48 ? " compact" : "",
                 escape_html(text), escape_html(text), p.event_index, p.start.count(), p.end.count(),
                 p.column, p.columns, pixels(p.start - axis_start), event_height, 100.0 * p.column / p.columns,
                 100.0 / p.columns, colors[p.event_index], tints[p.event_index], escape_html(event.title),

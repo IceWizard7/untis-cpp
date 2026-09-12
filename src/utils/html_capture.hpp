@@ -11,12 +11,12 @@ namespace Render_Utils {
             const auto head_end = capture_html.find("</head>");
             if (head_end != str::npos) {
                 capture_html.insert(head_end, R"(<style data-untis-capture>
-body{width:max-content;min-width:100%}main{max-width:none}
+body{width:max-content;min-width:100%}main{max-width:none;height:auto;display:block}
 .calendar-scroll{max-height:none!important;overflow:visible!important}
-.calendar-grid{grid-template-columns:68px var(--days)!important}
+.calendar-grid{grid-template-columns:52px var(--days)!important}
 .day-heading,.calendar-day{display:block!important}
 .day-heading,.time-axis{position:relative!important}
-.day-choice,.day-tab{display:none!important}
+.day-choice,.calendar-tabs,.day-tab{display:none!important}
 </style>)");
             }
         }
