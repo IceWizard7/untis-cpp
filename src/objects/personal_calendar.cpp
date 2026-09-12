@@ -7,6 +7,7 @@
 #include "config.hpp"
 #include "time_table.hpp"
 #include "utils/date_utils.hpp"
+#include "utils/html_navigation.hpp"
 
 namespace {
     str escape_html(const str& value) {
@@ -144,6 +145,7 @@ a:focus-visible,.calendar-event:focus-visible{outline:3px solid #132f62;outline-
     html += nav_link(Date_Utils::get_today(), Config::LanguageConfig::today.empty() ? "Today" : Config::LanguageConfig::today);
     html += nav_link(Date_Utils::add_days(target_date, n_days), "→");
     html += "</nav></header>";
+    html += Render_Utils::date_navigation_script;
     for (int day = 0; day < n_days; ++day) {
         html += std::format("<input class=\"day-choice\" type=\"radio\" name=\"calendar-day\" id=\"calendar-choice-{}\"{}>",
                             day, day == 0 ? " checked" : "");

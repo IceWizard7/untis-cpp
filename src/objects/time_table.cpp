@@ -4,6 +4,7 @@
 
 #include "config.hpp"
 #include "utils/all.hpp"
+#include "utils/html_navigation.hpp"
 
 TimeTable::TimeTable(std::vector<Period> periods_) :
     periods(std::move(periods_)) {
@@ -581,6 +582,7 @@ TimeTable::html_setup(const int64_t user_id, const bool website, const std::tupl
                         Date_Utils::date_to_str(Date_Utils::add_weeks(start_date.value(), 1), "%d-%m-%Y"),
                         Config::LanguageConfig::next_week),
                 "</p>",
+                Render_Utils::date_navigation_script,
                 R"(<table border="1" cellspacing="0" cellpadding="5">)",
                 std::format(
                         "<tr><th style=\"background-color: rgb({},{},{});\">{}</th>",
@@ -946,6 +948,7 @@ void TimeTable::html_add_lesson_time_range(std::vector<str> &html, const int les
 
             "</div>",
             "</nav>",
+            Render_Utils::date_navigation_script,
             "<div class=\"personal-timetable-table-wrap\">",
             R"(<table border="1" cellspacing="0" cellpadding="5">)",
 
