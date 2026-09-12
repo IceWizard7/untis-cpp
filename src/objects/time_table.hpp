@@ -97,6 +97,8 @@ public:
 
     // A continuous local-time calendar, independent of lesson_time_ranges.
     // External events are combined with this table's periods without mutation.
+    // pixels_per_minute controls the time-axis density: 1.0 = 60 px/hour (default),
+    // 2.0 = 120 px/hour. Valid range: 0.5 to 10, finite values only.
     [[nodiscard]] str to_personal_html_v2(
             const std::variant<Class, Room, Teacher> &featuring_object, date target_date,
             const str &person_name, int n_days = 1,
