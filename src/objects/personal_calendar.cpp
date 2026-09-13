@@ -141,9 +141,9 @@ a:focus-visible,.calendar-event:focus-visible{outline:3px solid #132f62;outline-
     const auto nav_link = [&](date day, const str &label) {
         return "<a href=\"?date=" + Date_Utils::date_to_str(day, "%d-%m-%Y") + "\">" + escape_html(label) + "</a>";
     };
-    html += nav_link(Date_Utils::add_days(target_date, -n_days), "←");
+    html += nav_link(Date_Utils::add_days(target_date, -1), "←");
     html += nav_link(Date_Utils::get_today(), Config::LanguageConfig::today.empty() ? "Today" : Config::LanguageConfig::today);
-    html += nav_link(Date_Utils::add_days(target_date, n_days), "→");
+    html += nav_link(Date_Utils::add_days(target_date, 1), "→");
     html += "</nav></header>";
     html += Render_Utils::date_navigation_script;
     for (int day = 0; day < n_days; ++day) {
