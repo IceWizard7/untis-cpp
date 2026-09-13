@@ -114,6 +114,8 @@ class Session final {
 public:
     str session_name;
     bool use_cache;
+    // Consumers that reconcile external state must never see partial timetables.
+    bool strict_timetable_parsing = false;
     Logger logger;
     str username;
     str password;

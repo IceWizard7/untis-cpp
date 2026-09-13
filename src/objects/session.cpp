@@ -18,6 +18,8 @@ namespace {
 
             if (response.error.code != cpr::ErrorCode::OK) {
                 last_failure = std::format("transport error: {}", response.error.message);
+            } else if (response.status_code >= 300 && response.status_code < 400) {
+                throw std::runtime_error(std::format("{} returned an unexpected redirect", operation));
             } else if (response.status_code >= 400 && response.status_code != 429 && response.status_code < 500) {
                 throw std::runtime_error(std::format("{} failed with HTTP {}", operation, response.status_code));
             } else if (response.status_code == 429 || response.status_code >= 500) {
@@ -275,6 +277,10 @@ json Session::rpc_request_with_session(cpr::Session &http, const str &method, co
     str url = std::format("{}/jsonrpc.do?school={}", server, school);
 
     http.SetUrl(cpr::Url{url});
+    if (strict_timetable_parsing) {
+        http.SetTimeout(cpr::Timeout{30000});
+        http.SetRedirect(cpr::Redirect{false});
+    }
     http.SetHeader(cpr::Header{{"Content-Type", "application/json"}});
 
     cpr::Cookies cookies;
@@ -363,8 +369,10 @@ void Session::log_in(const uuid &unique_id) {
         cpr::Header headers{{"Content-Type", "application/json"}};
 
         json data = post_json_with_retries(
-            [&url, &headers, &payload] {
-                return cpr::Post(cpr::Url{url}, headers, cpr::Body{payload.dump()});
+            [this, &url, &headers, &payload] {
+                return cpr::Post(cpr::Url{url}, headers, cpr::Body{payload.dump()},
+                                 cpr::Timeout{strict_timetable_parsing ? 30000 : 0},
+                                 cpr::Redirect{!strict_timetable_parsing});
             },
             "authenticate"
         );
@@ -575,6 +583,9 @@ std::optional<double> Session::cache_file_last_changed() const {
 
 TimeTable Session::parse_timetable(const json &raw_result, const std::optional<int> schoolyear_id) {
     if (!raw_result.is_array()) {
+        if (strict_timetable_parsing) {
+            throw std::runtime_error("Expected a WebUntis timetable array");
+        }
         return TimeTable({});
     }
 
@@ -594,11 +605,14 @@ TimeTable Session::parse_timetable(const json &raw_result, const std::optional<i
         all_ro[r.entity_id] = SessionCacheJson<Room>::encode(r);
     }
 
-    const auto array_or_empty = [](const json &value, const char *key) {
+    const auto array_or_empty = [this](const json &value, const char *key) {
         if (value.contains(key) && value.at(key).is_array()) {
             return value.at(key);
         }
 
+        if (strict_timetable_parsing && value.contains(key)) {
+            throw std::runtime_error("Invalid WebUntis lesson entity list");
+        }
         return json::array();
     };
 
@@ -606,6 +620,9 @@ TimeTable Session::parse_timetable(const json &raw_result, const std::optional<i
 
     for (const auto &raw_p: raw_result) {
         try {
+            if (strict_timetable_parsing && raw_p.at("id").get<int>() <= 0) {
+                throw std::runtime_error("Invalid WebUntis lesson ID");
+            }
             datetime start_dt = Date_Utils::combine(parse_date(raw_p.at("date")), parse_time(raw_p.at("startTime")));
             datetime end_dt = Date_Utils::combine(parse_date(raw_p.at("date")), parse_time(raw_p.at("endTime")));
 
@@ -664,6 +681,9 @@ TimeTable Session::parse_timetable(const json &raw_result, const std::optional<i
                                  raw_p.value("lsnumber", 0), raw_p.value("lstext", ""), raw_p.value("substText", ""),
                                  raw_p.value("type", ""), raw_p.value("id", 0));
         } catch (const std::exception &) {
+            if (strict_timetable_parsing) {
+                throw std::runtime_error("Malformed WebUntis lesson; refusing a partial timetable");
+            }
         }
     }
 
