@@ -29,7 +29,7 @@ Period::Period(
 
 Period::~Period() = default;
 
-[[nodiscard]] str Period::period_code_class(const Class &klassen_object) const {
+[[nodiscard]] str Period::period_code_class() const {
     // Base it on the raw_period_code
 
     if (!raw_period_code.has_value() || raw_period_code == "regular") {
@@ -106,21 +106,17 @@ str Period::period_code_teacher(const Teacher &teacher_object) const {
     return "regular";
 }
 
-[[nodiscard]] std::pair<str, std::pair<bool, bool> >
-Period::get_period_code(const std::variant<Class, Room, Teacher> &featuring_object) const {
+[[nodiscard]] std::pair<str, std::pair<bool, bool>> Period::get_period_code(const std::variant<Class, Room, Teacher> &featuring_object) const {
     // "regular" / "missed" / "extra"
     str period_code = "regular";
-    std::pair<bool, bool> rows_changed{false, false};
+    std::pair rows_changed{false, false};
 
     bool klasse_changed = false;
     bool room_changed = false;
     bool teacher_changed = false;
 
-    for (const auto &k: klassen) {
-        if (period_code_class(k) != "regular") {
-            klasse_changed = true;
-            break;
-        }
+    if (period_code_class() != "regular") {
+        klasse_changed = true;
     }
 
     for (const auto &r: Vector_Utils::concat_ranges(rooms, original_rooms)) {
@@ -137,8 +133,8 @@ Period::get_period_code(const std::variant<Class, Room, Teacher> &featuring_obje
         }
     }
 
-    if (const Class *c_ptr = std::get_if<Class>(&featuring_object)) {
-        period_code = period_code_class(*c_ptr);
+    if (std::holds_alternative<Class>(featuring_object)) {
+        period_code = period_code_class();
         rows_changed = {teacher_changed, room_changed};
     } else if (const Room *r_ptr = std::get_if<Room>(&featuring_object)) {
         period_code = period_code_room(*r_ptr);

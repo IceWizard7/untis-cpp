@@ -38,7 +38,7 @@ public:
 
     ~Period();
 
-    [[nodiscard]] str period_code_class(const Class &klassen_object) const;
+    [[nodiscard]] str period_code_class() const;
 
     [[nodiscard]] str period_code_room(const Room &room_object) const;
 
