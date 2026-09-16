@@ -25,7 +25,7 @@ public:
 
     void filter_hours_by_teacher(const Teacher &teacher);
 
-    void filter_hours_by_personal(const str &name);
+    void filter_hours_by_personal(const str &name, bool include_extra_hours = false);
 
     static str format_value(float value, bool percent, bool val_int);
 

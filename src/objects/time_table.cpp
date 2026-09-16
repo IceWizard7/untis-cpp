@@ -55,7 +55,7 @@ void TimeTable::filter_hours_by_teacher(const Teacher &teacher) {
 }
 
 // Keep any period that personal attends (modify TimeTable in place)
-void TimeTable::filter_hours_by_personal(const str &name) {
+void TimeTable::filter_hours_by_personal(const str &name, const bool include_extra_hours) {
     std::unordered_set<str> personal_teachers;
     std::unordered_set<str> personal_subjects;
 
@@ -90,7 +90,9 @@ void TimeTable::filter_hours_by_personal(const str &name) {
                     return personal_subjects.contains(s.name);
                 });
 
-        return !(teacher_match && subject_match);
+        const bool is_extra_hour = p.period_code_class() == "extra";
+
+        return !((teacher_match && subject_match) || (include_extra_hours && is_extra_hour));
     });
 }
 
