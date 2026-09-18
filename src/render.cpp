@@ -348,7 +348,7 @@ str Renderer::generate_base64_image(const str &html, const int width_mm, const i
                      fmt(content_size_.height) +
                      ","
                      "\"scale\":" +
-                     fmt(scale);
+                     fmt(1.0);
 
     got_screenshot_ = false;
     if (!ws_.send(msg("\"method\":\"Page.captureScreenshot\","
