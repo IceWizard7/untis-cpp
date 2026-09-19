@@ -1,6 +1,4 @@
 #include "render.hpp"
-#include "config.hpp"
-#include "utils/html_capture.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -11,6 +9,9 @@
 #include <thread>
 #include <ixwebsocket/IXHttpClient.h>
 #include <ixwebsocket/IXNetSystem.h>
+#include <nlohmann/json.hpp>
+
+#include "utils/html_capture.hpp"
 
 // Helpers
 
@@ -37,18 +38,27 @@ str Renderer::get_websocket_url() {
             last_status = response->statusCode;
 
             if (response->statusCode == 200) {
-                const str &body = response->body;
-                const auto pos = body.find("\"webSocketDebuggerUrl\"");
-                if (pos != str::npos) {
-                    const auto start = body.find('"', body.find(':', pos) + 1) + 1;
-                    return body.substr(start, body.find('"', start) - start);
+                const auto targets = nlohmann::json::parse(response->body, nullptr, false);
+                if (targets.is_array()) {
+                    for (const auto &target : targets) {
+                        // Recent Chrome versions also expose browser_ui targets (e.g. the macOS omnibox popup)
+                        // They can accept HTML and screenshots but do not behave like a renderable page.
+                        if (target.is_object() && target.value("type", str{}) == "page" &&
+                            target.contains("webSocketDebuggerUrl") &&
+                            target["webSocketDebuggerUrl"].is_string()) {
+                            const auto url = target["webSocketDebuggerUrl"].get<str>();
+                            if (!url.empty()) {
+                                return url;
+                            }
+                        }
+                    }
                 }
             }
         }
         std::this_thread::sleep_for(CDP_FETCH_INTERVAL);
     }
 
-    std::cerr << "Failed to fetch /json after waiting: " << last_status << "\n";
+    std::cerr << "No debuggable page at /json after waiting (HTTP " << last_status << "). Launch Chromium with about:blank.\n";
     return "";
 }
 
