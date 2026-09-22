@@ -121,14 +121,14 @@ str Period::period_code_teacher(const Teacher &teacher_object) const {
 
     for (const auto &r: Vector_Utils::concat_ranges(rooms, original_rooms)) {
         if (period_code_room(r) != "regular") {
-            klasse_changed = true;
+            room_changed = true;
             break;
         }
     }
 
     for (const auto &t: Vector_Utils::concat_ranges(teachers, original_teachers)) {
         if (period_code_teacher(t) != "regular") {
-            klasse_changed = true;
+            teacher_changed = true;
             break;
         }
     }
