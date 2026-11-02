@@ -95,7 +95,7 @@ str Period::period_code_teacher(const Teacher &teacher_object) const {
     }
 
     if (Vector_Utils::contains_value(original_teachers, teacher_object) &&
-        Vector_Utils::contains_value(teachers, teacher_object)) {
+        !Vector_Utils::contains_value(teachers, teacher_object)) {
         return "missed";
     }
 
